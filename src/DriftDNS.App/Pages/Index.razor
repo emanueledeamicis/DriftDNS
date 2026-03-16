@@ -1,0 +1,82 @@
+@page "/"
+@using DriftDNS.Core.Interfaces
+@using DriftDNS.Infrastructure.Data
+@using Microsoft.EntityFrameworkCore
+@inject IPublicIpResolver IpResolver
+@inject DriftDnsDbContext Db
+@inject IDnsSyncService SyncService
+
+<PageTitle>Overview – DriftDNS</PageTitle>
+
+<h1>Overview</h1>
+
+<div class="row mt-3">
+    <div class="col-md-3">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title">Public IP</h5>
+                <p class="card-text fs-4">@(_publicIp ?? "Resolving...")</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title">Endpoints</h5>
+                <p class="card-text fs-4">@_endpointCount</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title">Last Sync</h5>
+                <p class="card-text">@(_lastSync?.ToString("g") ?? "Never")</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="mt-4">
+    <button class="btn btn-primary" @onclick="TriggerSync" disabled="@_syncing">
+        @(_syncing ? "Syncing..." : "Sync Now")
+    </button>
+    @if (_syncMessage is not null)
+    {
+        <span class="ms-3 text-success">@_syncMessage</span>
+    }
+</div>
+
+@code {
+    private string? _publicIp;
+    private int _endpointCount;
+    private DateTime? _lastSync;
+    private bool _syncing;
+    private string? _syncMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _publicIp = await IpResolver.ResolveAsync();
+        _endpointCount = await Db.DnsEndpoints.CountAsync();
+        _lastSync = await Db.SyncLogs
+            .OrderByDescending(l => l.Timestamp)
+            .Select(l => (DateTime?)l.Timestamp)
+            .FirstOrDefaultAsync();
+    }
+
+    private async Task TriggerSync()
+    {
+        _syncing = true;
+        _syncMessage = null;
+        try
+        {
+            await SyncService.RunSyncAsync();
+            _syncMessage = "Sync completed at " + DateTime.Now.ToString("T");
+            _lastSync = DateTime.UtcNow;
+        }
+        finally
+        {
+            _syncing = false;
+        }
+    }
+}

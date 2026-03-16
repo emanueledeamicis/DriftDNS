@@ -1,0 +1,168 @@
+@page "/providers"
+@using DriftDNS.Core.Models
+@using DriftDNS.Infrastructure.Data
+@using Microsoft.EntityFrameworkCore
+@using System.Text.Json
+@inject DriftDnsDbContext Db
+
+<PageTitle>Providers – DriftDNS</PageTitle>
+
+<h1>Provider Accounts</h1>
+
+<button class="btn btn-primary mb-3" @onclick="ShowAddForm">+ Add Provider</button>
+
+@if (_showForm)
+{
+    <div class="card mb-3">
+        <div class="card-body">
+            <h5>@(_editing ? "Edit" : "New") Provider</h5>
+            <div class="mb-2">
+                <label>Name</label>
+                <input class="form-control" @bind="_name" />
+            </div>
+            <div class="mb-2">
+                <label>Provider Type</label>
+                <select class="form-select" @bind="_providerType">
+                    <option value="Route53">AWS Route53</option>
+                </select>
+            </div>
+            <div class="mb-2">
+                <label>Access Key</label>
+                <input class="form-control" @bind="_accessKey" />
+            </div>
+            <div class="mb-2">
+                <label>Secret Key</label>
+                <input class="form-control" type="password" @bind="_secretKey" />
+            </div>
+            <div class="mb-2 form-check">
+                <input class="form-check-input" type="checkbox" @bind="_isEnabled" id="provEnabled" />
+                <label class="form-check-label" for="provEnabled">Enabled</label>
+            </div>
+            <button class="btn btn-success" @onclick="SaveProvider">Save</button>
+            <button class="btn btn-secondary ms-2" @onclick="CancelForm">Cancel</button>
+            @if (_error is not null) { <span class="text-danger ms-2">@_error</span> }
+        </div>
+    </div>
+}
+
+<table class="table table-striped">
+    <thead>
+        <tr>
+            <th>Name</th>
+            <th>Type</th>
+            <th>Enabled</th>
+            <th>Created</th>
+            <th></th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var p in _accounts)
+        {
+            <tr>
+                <td>@p.Name</td>
+                <td>@p.ProviderType</td>
+                <td>@(p.IsEnabled ? "Yes" : "No")</td>
+                <td>@p.CreatedAt.ToString("g")</td>
+                <td>
+                    <button class="btn btn-sm btn-outline-secondary" @onclick="() => EditProvider(p)">Edit</button>
+                    <button class="btn btn-sm btn-outline-danger ms-1" @onclick="() => DeleteProvider(p)">Delete</button>
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+@code {
+    private List<ProviderAccount> _accounts = [];
+    private bool _showForm;
+    private bool _editing;
+    private Guid _editId;
+    private string _name = string.Empty;
+    private string _providerType = "Route53";
+    private string _accessKey = string.Empty;
+    private string _secretKey = string.Empty;
+    private bool _isEnabled = true;
+    private string? _error;
+
+    protected override async Task OnInitializedAsync() => await LoadAsync();
+
+    private async Task LoadAsync() =>
+        _accounts = await Db.ProviderAccounts.ToListAsync();
+
+    private void ShowAddForm()
+    {
+        _name = string.Empty;
+        _providerType = "Route53";
+        _accessKey = string.Empty;
+        _secretKey = string.Empty;
+        _isEnabled = true;
+        _editing = false;
+        _showForm = true;
+        _error = null;
+    }
+
+    private void EditProvider(ProviderAccount p)
+    {
+        _editId = p.Id;
+        _name = p.Name;
+        _providerType = p.ProviderType;
+        _isEnabled = p.IsEnabled;
+        _editing = true;
+        _showForm = true;
+        _error = null;
+        // Don't pre-fill credentials for security
+        _accessKey = string.Empty;
+        _secretKey = string.Empty;
+    }
+
+    private async Task SaveProvider()
+    {
+        if (string.IsNullOrWhiteSpace(_name))
+        {
+            _error = "Name is required.";
+            return;
+        }
+
+        var credentials = JsonSerializer.Serialize(new
+        {
+            AccessKey = _accessKey,
+            SecretKey = _secretKey,
+        });
+
+        if (_editing)
+        {
+            var existing = await Db.ProviderAccounts.FindAsync(_editId);
+            if (existing is not null)
+            {
+                existing.Name = _name;
+                existing.ProviderType = _providerType;
+                existing.IsEnabled = _isEnabled;
+                if (!string.IsNullOrWhiteSpace(_accessKey))
+                    existing.EncryptedCredentials = credentials;
+            }
+        }
+        else
+        {
+            Db.ProviderAccounts.Add(new ProviderAccount
+            {
+                Name = _name,
+                ProviderType = _providerType,
+                EncryptedCredentials = credentials,
+                IsEnabled = _isEnabled,
+            });
+        }
+
+        await Db.SaveChangesAsync();
+        _showForm = false;
+        await LoadAsync();
+    }
+
+    private async Task DeleteProvider(ProviderAccount p)
+    {
+        Db.ProviderAccounts.Remove(p);
+        await Db.SaveChangesAsync();
+        await LoadAsync();
+    }
+
+    private void CancelForm() => _showForm = false;
+}

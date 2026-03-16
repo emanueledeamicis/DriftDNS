@@ -1,0 +1,200 @@
+@page "/endpoints"
+@using DriftDNS.Core.Models
+@using DriftDNS.Infrastructure.Data
+@using Microsoft.EntityFrameworkCore
+@inject DriftDnsDbContext Db
+@inject NavigationManager Nav
+
+<PageTitle>DNS Endpoints – DriftDNS</PageTitle>
+
+<h1>DNS Endpoints</h1>
+
+<button class="btn btn-primary mb-3" @onclick="ShowAddForm">+ Add Endpoint</button>
+
+@if (_showNoProviderModal)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background:rgba(0,0,0,.5)">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">No providers configured</h5>
+                    <button type="button" class="btn-close" @onclick="() => _showNoProviderModal = false"></button>
+                </div>
+                <div class="modal-body">
+                    <p>You need at least one active provider account before adding a DNS endpoint.</p>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" @onclick="() => _showNoProviderModal = false">Cancel</button>
+                    <button class="btn btn-primary" @onclick="GoToProviders">Configure a Provider</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@if (_showForm)
+{
+    <div class="card mb-3">
+        <div class="card-body">
+            <h5>@(_editing ? "Edit" : "New") Endpoint</h5>
+            <div class="mb-2">
+                <label>Hostname</label>
+                <input class="form-control" @bind="_form.Hostname" />
+            </div>
+            <div class="mb-2">
+                <label>Zone Name</label>
+                <input class="form-control" @bind="_form.ZoneName" />
+            </div>
+            <div class="mb-2">
+                <label>Record Type</label>
+                <select class="form-select" @bind="_form.RecordType">
+                    <option>A</option>
+                    <option>AAAA</option>
+                </select>
+            </div>
+            <div class="mb-2">
+                <label>Provider Account</label>
+                <select class="form-select" @bind="_form.ProviderAccountId">
+                    @foreach (var p in _providers)
+                    {
+                        <option value="@p.Id">@p.Name</option>
+                    }
+                </select>
+            </div>
+            <div class="mb-2">
+                <label>TTL (seconds)</label>
+                <input class="form-control" type="number" @bind="_form.TTL" />
+            </div>
+            <div class="mb-2 form-check">
+                <input class="form-check-input" type="checkbox" @bind="_form.Enabled" id="enabled" />
+                <label class="form-check-label" for="enabled">Enabled</label>
+            </div>
+            <button class="btn btn-success" @onclick="SaveEndpoint">Save</button>
+            <button class="btn btn-secondary ms-2" @onclick="CancelForm">Cancel</button>
+            @if (_error is not null) { <span class="text-danger ms-2">@_error</span> }
+        </div>
+    </div>
+}
+
+<table class="table table-striped">
+    <thead>
+        <tr>
+            <th>Hostname</th>
+            <th>Zone</th>
+            <th>Type</th>
+            <th>Provider</th>
+            <th>TTL</th>
+            <th>Enabled</th>
+            <th></th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var ep in _endpoints)
+        {
+            <tr>
+                <td>@ep.Hostname</td>
+                <td>@ep.ZoneName</td>
+                <td>@ep.RecordType</td>
+                <td>@ep.ProviderAccount?.Name</td>
+                <td>@ep.TTL</td>
+                <td>@(ep.Enabled ? "Yes" : "No")</td>
+                <td>
+                    <button class="btn btn-sm btn-outline-secondary" @onclick="() => EditEndpoint(ep)">Edit</button>
+                    <button class="btn btn-sm btn-outline-danger ms-1" @onclick="() => DeleteEndpoint(ep)">Delete</button>
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+@code {
+    private List<DnsEndpoint> _endpoints = [];
+    private List<ProviderAccount> _providers = [];
+    private bool _showForm;
+    private bool _editing;
+    private bool _showNoProviderModal;
+    private DnsEndpoint _form = new();
+    private string? _error;
+
+    protected override async Task OnInitializedAsync() => await LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        _endpoints = await Db.DnsEndpoints.Include(e => e.ProviderAccount).ToListAsync();
+        _providers = await Db.ProviderAccounts.Where(p => p.IsEnabled).ToListAsync();
+    }
+
+    private void ShowAddForm()
+    {
+        if (_providers.Count == 0)
+        {
+            _showNoProviderModal = true;
+            return;
+        }
+
+        _form = new DnsEndpoint { TTL = 300, RecordType = "A", ProviderAccountId = _providers[0].Id };
+        _editing = false;
+        _showForm = true;
+        _error = null;
+    }
+
+    private void GoToProviders() => Nav.NavigateTo("/providers");
+
+    private void EditEndpoint(DnsEndpoint ep)
+    {
+        _form = new DnsEndpoint
+        {
+            Id = ep.Id,
+            Hostname = ep.Hostname,
+            ZoneName = ep.ZoneName,
+            RecordType = ep.RecordType,
+            ProviderAccountId = ep.ProviderAccountId,
+            TTL = ep.TTL,
+            Enabled = ep.Enabled,
+            CreatedAt = ep.CreatedAt,
+        };
+        _editing = true;
+        _showForm = true;
+        _error = null;
+    }
+
+    private async Task SaveEndpoint()
+    {
+        if (string.IsNullOrWhiteSpace(_form.Hostname) || string.IsNullOrWhiteSpace(_form.ZoneName))
+        {
+            _error = "Hostname and Zone are required.";
+            return;
+        }
+
+        if (_editing)
+        {
+            var existing = await Db.DnsEndpoints.FindAsync(_form.Id);
+            if (existing is not null)
+            {
+                existing.Hostname = _form.Hostname;
+                existing.ZoneName = _form.ZoneName;
+                existing.RecordType = _form.RecordType;
+                existing.ProviderAccountId = _form.ProviderAccountId;
+                existing.TTL = _form.TTL;
+                existing.Enabled = _form.Enabled;
+            }
+        }
+        else
+        {
+            Db.DnsEndpoints.Add(_form);
+        }
+
+        await Db.SaveChangesAsync();
+        _showForm = false;
+        await LoadAsync();
+    }
+
+    private async Task DeleteEndpoint(DnsEndpoint ep)
+    {
+        Db.DnsEndpoints.Remove(ep);
+        await Db.SaveChangesAsync();
+        await LoadAsync();
+    }
+
+    private void CancelForm() => _showForm = false;
+}
