@@ -2,6 +2,7 @@ using DriftDNS.App.Workers;
 using DriftDNS.Core.Interfaces;
 using DriftDNS.Infrastructure.Data;
 using DriftDNS.Infrastructure.Services;
+using DriftDNS.Providers.Cloudflare;
 using DriftDNS.Providers.Route53;
 using Microsoft.EntityFrameworkCore;
 
@@ -26,6 +27,7 @@ builder.Services.AddSingleton<IUpdateChecker, GitHubUpdateChecker>();
 
 // DNS providers
 builder.Services.AddScoped<IDnsProvider, Route53DnsProvider>();
+builder.Services.AddScoped<IDnsProvider, CloudflareDnsProvider>();
 
 // Background worker
 builder.Services.AddHostedService<DnsSyncWorker>();

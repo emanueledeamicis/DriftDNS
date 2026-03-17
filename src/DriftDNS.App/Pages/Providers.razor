@@ -26,16 +26,28 @@
                 <label>Provider Type</label>
                 <select class="form-select" @bind="_providerType">
                     <option value="Route53">AWS Route53</option>
+                    <option value="Cloudflare">Cloudflare</option>
                 </select>
             </div>
-            <div class="mb-2">
-                <label>Access Key</label>
-                <input class="form-control" @bind="_accessKey" />
-            </div>
-            <div class="mb-2">
-                <label>Secret Key</label>
-                <input class="form-control" type="password" @bind="_secretKey" />
-            </div>
+            @if (_providerType == "Route53")
+            {
+                <div class="mb-2">
+                    <label>Access Key</label>
+                    <input class="form-control" @bind="_accessKey" />
+                </div>
+                <div class="mb-2">
+                    <label>Secret Key</label>
+                    <input class="form-control" type="password" @bind="_secretKey" />
+                </div>
+            }
+            else if (_providerType == "Cloudflare")
+            {
+                <div class="mb-2">
+                    <label>API Token</label>
+                    <input class="form-control" type="password" @bind="_accessKey" />
+                    <div class="form-text">Create a token with <strong>Zone:Read</strong> and <strong>DNS:Edit</strong> permissions.</div>
+                </div>
+            }
 <button class="btn btn-success" @onclick="SaveProvider">Save</button>
             <button class="btn btn-secondary ms-2" @onclick="CancelForm">Cancel</button>
             @if (_error is not null) { <span class="text-danger ms-2">@_error</span> }
@@ -154,11 +166,9 @@
             return;
         }
 
-        var credentials = JsonSerializer.Serialize(new
-        {
-            AccessKey = _accessKey,
-            SecretKey = _secretKey,
-        });
+        var credentials = _providerType == "Cloudflare"
+            ? JsonSerializer.Serialize(new { ApiToken = _accessKey })
+            : JsonSerializer.Serialize(new { AccessKey = _accessKey, SecretKey = _secretKey });
 
         if (_editing)
         {

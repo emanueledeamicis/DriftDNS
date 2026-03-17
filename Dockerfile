@@ -5,6 +5,7 @@ COPY DriftDNS.slnx .
 COPY src/DriftDNS.Core/DriftDNS.Core.csproj src/DriftDNS.Core/
 COPY src/DriftDNS.Infrastructure/DriftDNS.Infrastructure.csproj src/DriftDNS.Infrastructure/
 COPY src/DriftDNS.Providers.Route53/DriftDNS.Providers.Route53.csproj src/DriftDNS.Providers.Route53/
+COPY src/DriftDNS.Providers.Cloudflare/DriftDNS.Providers.Cloudflare.csproj src/DriftDNS.Providers.Cloudflare/
 COPY src/DriftDNS.App/DriftDNS.App.csproj src/DriftDNS.App/
 COPY tests/DriftDNS.Tests/DriftDNS.Tests.csproj tests/DriftDNS.Tests/
 
