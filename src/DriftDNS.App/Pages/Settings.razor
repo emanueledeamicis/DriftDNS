@@ -1,6 +1,7 @@
 @page "/settings"
 @using DriftDNS.Core.Models
 @using DriftDNS.Infrastructure.Data
+@using Microsoft.EntityFrameworkCore
 @inject DriftDnsDbContext Db
 
 <PageTitle>Settings – DriftDNS</PageTitle>
@@ -17,8 +18,16 @@
                 <input class="form-control" type="number" min="1" max="1440" @bind="_syncInterval" />
                 <div class="form-text">How often DriftDNS checks for an IP change. The new value takes effect after the next sync cycle.</div>
             </div>
+            <h5 class="card-title mt-3">Logs</h5>
+            <div class="mb-3">
+                <label class="form-label">Log retention (hours)</label>
+                <input class="form-control" type="number" min="1" max="8760" @bind="_logRetentionHours" />
+                <div class="form-text">Logs older than this are automatically deleted after each sync cycle.</div>
+            </div>
             <button class="btn btn-primary" @onclick="Save">Save</button>
+            <button class="btn btn-outline-danger ms-2" @onclick="PurgeNow">Purge now</button>
             @if (_saved) { <span class="ms-3 text-success">Saved.</span> }
+            @if (_purged) { <span class="ms-3 text-success">Logs purged.</span> }
             @if (_error is not null) { <span class="ms-3 text-danger">@_error</span> }
         </div>
     </div>
@@ -27,19 +36,25 @@
 @code {
     private AppSettings? _settings;
     private int _syncInterval;
+    private int _logRetentionHours;
     private bool _saved;
+    private bool _purged;
     private string? _error;
 
     protected override async Task OnInitializedAsync()
     {
         _settings = await Db.AppSettings.FindAsync(1);
         if (_settings is not null)
+        {
             _syncInterval = _settings.SyncIntervalMinutes;
+            _logRetentionHours = _settings.LogRetentionHours;
+        }
     }
 
     private async Task Save()
     {
         _saved = false;
+        _purged = false;
         _error = null;
 
         if (_syncInterval < 1)
@@ -48,8 +63,28 @@
             return;
         }
 
+        if (_logRetentionHours < 1)
+        {
+            _error = "Retention must be at least 1 hour.";
+            return;
+        }
+
         _settings!.SyncIntervalMinutes = _syncInterval;
+        _settings!.LogRetentionHours = _logRetentionHours;
         await Db.SaveChangesAsync();
         _saved = true;
+    }
+
+    private async Task PurgeNow()
+    {
+        _saved = false;
+        _purged = false;
+        _error = null;
+
+        var cutoff = DateTime.UtcNow.AddHours(-_logRetentionHours);
+        await Db.SyncLogs
+            .Where(l => l.Timestamp < cutoff)
+            .ExecuteDeleteAsync();
+        _purged = true;
     }
 }

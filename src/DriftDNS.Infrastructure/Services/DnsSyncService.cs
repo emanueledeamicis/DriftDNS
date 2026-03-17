@@ -53,7 +53,18 @@ public class DnsSyncService : IDnsSyncService
             await SyncEndpointAsync(endpoint, currentIp, forceUpdate, cancellationToken);
         }
 
+        await PurgeOldLogsAsync(cancellationToken);
         _logger.LogInformation("DNS sync completed");
+    }
+
+    private async Task PurgeOldLogsAsync(CancellationToken cancellationToken)
+    {
+        var settings = await _db.AppSettings.FindAsync([1], cancellationToken);
+        var retentionHours = settings?.LogRetentionHours ?? 24;
+        var cutoff = DateTime.UtcNow.AddHours(-retentionHours);
+        await _db.SyncLogs
+            .Where(l => l.Timestamp < cutoff)
+            .ExecuteDeleteAsync(cancellationToken);
     }
 
     public async Task SyncEndpointAsync(Guid endpointId, CancellationToken cancellationToken = default)

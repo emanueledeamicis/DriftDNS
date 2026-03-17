@@ -8,6 +8,22 @@
 
 <h1>Sync Logs</h1>
 
+<div class="d-flex gap-2 mb-3 align-items-center">
+    <select class="form-select w-auto" value="@_actionFilter" @onchange="OnFilterChanged">
+        <option value="">All actions</option>
+        <option value="@SyncAction.Updated">Updated</option>
+        <option value="@SyncAction.Failed">Failed</option>
+        <option value="@SyncAction.NoChange">No Change</option>
+    </select>
+    <select class="form-select w-auto" value="@_pageSize" @onchange="OnPageSizeChanged">
+        <option value="25">25 per page</option>
+        <option value="50">50 per page</option>
+        <option value="100">100 per page</option>
+    </select>
+    <span class="text-muted small">@_totalCount total</span>
+    <button class="btn btn-outline-secondary btn-sm ms-auto" @onclick="LoadAsync">&#8635; Refresh</button>
+</div>
+
 <table class="table table-sm table-striped">
     <thead>
         <tr>
@@ -34,16 +50,60 @@
     </tbody>
 </table>
 
+@if (TotalPages > 1)
+{
+    <div class="d-flex align-items-center gap-2">
+        <button class="btn btn-outline-secondary btn-sm" @onclick="() => ChangePage(_page - 1)" disabled="@(_page <= 1)">&#8249; Prev</button>
+        <span class="small">Page @_page of @TotalPages</span>
+        <button class="btn btn-outline-secondary btn-sm" @onclick="() => ChangePage(_page + 1)" disabled="@(_page >= TotalPages)">Next &#8250;</button>
+    </div>
+}
+
 @code {
     private List<SyncLog> _logs = [];
+    private int _page = 1;
+    private int _pageSize = 25;
+    private string _actionFilter = "";
+    private int _totalCount;
 
-    protected override async Task OnInitializedAsync()
+    private int TotalPages => (int)Math.Ceiling((double)_totalCount / _pageSize);
+
+    protected override async Task OnInitializedAsync() => await LoadAsync();
+
+    private async Task LoadAsync()
     {
-        _logs = await Db.SyncLogs
-            .Include(l => l.Endpoint)
+        var query = Db.SyncLogs.Include(l => l.Endpoint).AsQueryable();
+
+        if (!string.IsNullOrEmpty(_actionFilter))
+            query = query.Where(l => l.Action == _actionFilter);
+
+        _totalCount = await query.CountAsync();
+        _logs = await query
             .OrderByDescending(l => l.Timestamp)
-            .Take(200)
+            .Skip((_page - 1) * _pageSize)
+            .Take(_pageSize)
             .ToListAsync();
+    }
+
+    private async Task ChangePage(int page)
+    {
+        _page = page;
+        await LoadAsync();
+    }
+
+    private async Task OnFilterChanged(ChangeEventArgs e)
+    {
+        _actionFilter = e.Value?.ToString() ?? "";
+        _page = 1;
+        await LoadAsync();
+    }
+
+    private async Task OnPageSizeChanged(ChangeEventArgs e)
+    {
+        if (int.TryParse(e.Value?.ToString(), out var size))
+            _pageSize = size;
+        _page = 1;
+        await LoadAsync();
     }
 
     private static string ActionClass(string action) => action switch
