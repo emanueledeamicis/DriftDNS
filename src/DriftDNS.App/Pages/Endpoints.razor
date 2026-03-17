@@ -6,6 +6,7 @@
 @inject DriftDnsDbContext Db
 @inject NavigationManager Nav
 @inject IEnumerable<IDnsProvider> DnsProviders
+@inject IDnsSyncService SyncService
 
 <PageTitle>DNS Endpoints – DriftDNS</PageTitle>
 
@@ -354,7 +355,14 @@
         }
         else
         {
+            _form.Id = Guid.NewGuid();
+            _form.CreatedAt = DateTime.UtcNow;
             Db.DnsEndpoints.Add(_form);
+            await Db.SaveChangesAsync();
+            await SyncService.SyncEndpointAsync(_form.Id);
+            _showForm = false;
+            await LoadAsync();
+            return;
         }
 
         await Db.SaveChangesAsync();

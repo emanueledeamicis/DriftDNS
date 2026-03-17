@@ -1,6 +1,7 @@
 services:
   driftdns:
-    image: emanueledeamicis/driftdns:latest
+    # image: emanueledeamicis/driftdns:latest
+    build: .
     container_name: driftdns
     restart: unless-stopped
     ports:

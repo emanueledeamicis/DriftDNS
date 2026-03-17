@@ -29,8 +29,6 @@ builder.Services.AddScoped<IDnsProvider, Route53DnsProvider>();
 // Background worker
 builder.Services.AddHostedService<DnsSyncWorker>();
 
-// API controllers
-builder.Services.AddControllers();
 
 var app = builder.Build();
 
@@ -57,6 +55,5 @@ app.UseRouting();
 
 app.MapBlazorHub();
 app.MapFallbackToPage("/_Host");
-app.MapControllers();
 
 app.Run();

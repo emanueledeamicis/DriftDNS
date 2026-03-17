@@ -56,6 +56,26 @@ public class DnsSyncService : IDnsSyncService
         _logger.LogInformation("DNS sync completed");
     }
 
+    public async Task SyncEndpointAsync(Guid endpointId, CancellationToken cancellationToken = default)
+    {
+        var currentIp = await _ipResolver.ResolveAsync(cancellationToken);
+        if (currentIp is null)
+        {
+            _logger.LogError("DNS sync aborted for endpoint {EndpointId}: could not resolve public IP", endpointId);
+            await WriteLogAsync(endpointId, SyncAction.Failed, null, null, "Could not resolve public IP");
+            return;
+        }
+
+        var endpoint = await _db.DnsEndpoints
+            .Where(e => e.Id == endpointId && e.Enabled)
+            .Include(e => e.ProviderAccount)
+            .Include(e => e.SyncState)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (endpoint is not null)
+            await SyncEndpointAsync(endpoint, currentIp, forceUpdate: true, cancellationToken);
+    }
+
     private async Task SyncEndpointAsync(DnsEndpoint endpoint, string currentIp, bool forceUpdate, CancellationToken cancellationToken)
     {
         var state = endpoint.SyncState ?? new SyncState { EndpointId = endpoint.Id };
