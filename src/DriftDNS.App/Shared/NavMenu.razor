@@ -35,10 +35,14 @@
             </NavLink>
         </div>
     </nav>
+    <div class="px-3 mt-auto pb-3">
+        <small class="text-muted">v@_version</small>
+    </div>
 </div>
 
 @code {
     private bool collapseNavMenu = true;
+    private string _version = typeof(NavMenu).Assembly.GetName().Version?.ToString(3) ?? "—";
 
     private string? NavMenuCssClass => collapseNavMenu ? "collapse" : null;
 
