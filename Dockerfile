@@ -1,7 +1,7 @@
 FROM mcr.microsoft.com/dotnet/sdk:9.0 AS build
 WORKDIR /source
 
-COPY DriftDNS.sln .
+COPY DriftDNS.slnx .
 COPY src/DriftDNS.Core/DriftDNS.Core.csproj src/DriftDNS.Core/
 COPY src/DriftDNS.Infrastructure/DriftDNS.Infrastructure.csproj src/DriftDNS.Infrastructure/
 COPY src/DriftDNS.Providers.Route53/DriftDNS.Providers.Route53.csproj src/DriftDNS.Providers.Route53/
