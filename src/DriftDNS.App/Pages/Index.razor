@@ -30,6 +30,14 @@
     <div class="col-md-3">
         <div class="card">
             <div class="card-body">
+                <h5 class="card-title">Providers</h5>
+                <p class="card-text fs-4">@_providerCount</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card">
+            <div class="card-body">
                 <h5 class="card-title">Last Sync</h5>
                 <p class="card-text">@(_lastSync?.ToString("g") ?? "Never")</p>
             </div>
@@ -50,6 +58,7 @@
 @code {
     private string? _publicIp;
     private int _endpointCount;
+    private int _providerCount;
     private DateTime? _lastSync;
     private bool _syncing;
     private string? _syncMessage;
@@ -58,6 +67,7 @@
     {
         _publicIp = await IpResolver.ResolveAsync();
         _endpointCount = await Db.DnsEndpoints.CountAsync();
+        _providerCount = await Db.ProviderAccounts.CountAsync();
         _lastSync = await Db.SyncLogs
             .OrderByDescending(l => l.Timestamp)
             .Select(l => (DateTime?)l.Timestamp)

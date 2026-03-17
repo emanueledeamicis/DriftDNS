@@ -2,154 +2,142 @@
 
 DriftDNS is a self-hosted **Dynamic DNS manager** designed for homelab users and developers running services behind a dynamic public IP.
 
-It automatically detects your public IP address and updates DNS records on supported DNS providers.
-
-DriftDNS includes a **web dashboard**, **background synchronization engine**, and a **provider abstraction system** for supporting multiple DNS providers.
+It automatically detects your public IP address and updates DNS records on supported providers — all through a simple web dashboard.
 
 ---
 
-# Why DriftDNS?
+## Why DriftDNS?
 
-Many people run services from home networks:
+Many people run services from home networks (Home Assistant, Plex, VPN servers, self-hosted apps) but most ISPs assign **dynamic public IP addresses**, meaning DNS records must be updated every time the IP changes.
 
-- Home Assistant
-- Plex
-- VPN servers
-- self-hosted apps
-- NAS services
-
-However most ISPs assign **dynamic public IP addresses**.
-
-This means your domain DNS records must be updated every time your IP changes.
-
-DriftDNS solves this problem by automatically:
+DriftDNS solves this by automatically:
 
 1. Detecting your current public IP
 2. Comparing it with the last known value
 3. Updating your DNS records when the IP changes
 
-All through a **simple web dashboard**.
-
 ---
 
-# Features
+## Features
 
-- self-hosted
-- Docker friendly
-- web dashboard
-- automatic IP detection
-- automatic DNS updates
-- provider abstraction layer
-- synchronization logs
-- manual sync trigger
-
----
-
-# Planned DNS Providers
-
-Initial support:
-
-- AWS Route53
-
-Planned providers:
-
-- Cloudflare
-- Azure DNS
-- Google Cloud DNS
-- DuckDNS
-
----
-
-# Architecture
-
-DriftDNS is built using:
-
-- **ASP.NET Core**
-- **Blazor Server**
-- **SQLite**
-- **Entity Framework Core**
-
-The application runs as a **single container service** containing:
-
+- Self-hosted, single container
 - Web dashboard
-- Background sync worker
-- DNS provider integrations
-- SQLite database
+- Automatic IP detection and DNS updates
+- Configurable sync interval
+- Sync logs with configurable retention
+- Manual sync trigger
+- Provider abstraction layer
 
 ---
 
-# Quick Start (Docker)
+## Supported DNS Providers
 
-Example docker run:
+| Provider | Status |
+|---|---|
+| AWS Route53 | ✓ Supported |
+| Cloudflare | Planned |
+| Azure DNS | Planned |
+| Google Cloud DNS | Planned |
+
+---
+
+## Quick Start
+
+### Docker Compose (recommended)
+
+```yaml
+services:
+  driftdns:
+    image: catokx/driftdns:latest
+    container_name: driftdns
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    volumes:
+      - driftdns-data:/app/data
+
+volumes:
+  driftdns-data:
+```
+
+```bash
+docker compose up -d
+```
+
+### Docker Run
 
 ```bash
 docker run -d \
+  --name driftdns \
+  --restart unless-stopped \
   -p 8080:8080 \
-  -v driftdns_data:/app/data \
-  ghcr.io/your-org/driftdns
+  -v driftdns-data:/app/data \
+  catokx/driftdns:latest
+```
 
-Then open:
+Then open: **http://localhost:8080**
 
-http://localhost:8080
+---
 
-Configuration
+## Configuration
 
-Important environment variables:
+| Environment Variable | Default | Description |
+|---|---|---|
+| `DatabasePath` | `/app/data/app.db` | Path to the SQLite database file |
+| `ASPNETCORE_URLS` | `http://+:8080` | Listening address |
 
-DRIFTDNS__SYNC_INTERVAL_MINUTES=5
-DRIFTDNS__ENCRYPTION_KEY=your-secret-key
+Sync interval and log retention can be configured directly from the Settings page in the dashboard.
 
-Project Structure
+---
+
+## Updating
+
+```bash
+docker compose pull
+docker compose up -d
+```
+
+---
+
+## Architecture
+
+Built with:
+
+- **ASP.NET Core 9** + **Blazor Server**
+- **Entity Framework Core** + **SQLite**
+
+```
 src/
-
-  DriftDNS.App
-  DriftDNS.Core
-  DriftDNS.Infrastructure
-  DriftDNS.Providers.Route53
-  DriftDNS.Providers.Cloudflare
+  DriftDNS.App                 # Blazor Server application
+  DriftDNS.Core                # Models and interfaces
+  DriftDNS.Infrastructure      # EF Core, services
+  DriftDNS.Providers.Route53   # AWS Route53 provider
 
 tests/
+  DriftDNS.Tests               # NUnit test suite
+```
 
-  DriftDNS.Tests
+---
 
-  Development
+## Development
 
-Requirements:
+Requirements: **.NET 9**, **Docker**
 
-.NET 8 or .NET 9
-
-Docker
-
-Node is NOT required
-
-Run locally:
-
+```bash
 dotnet run --project src/DriftDNS.App
+```
 
-Roadmap
+---
 
-Planned features:
+## Roadmap
 
-Cloudflare provider
+- Cloudflare provider
+- IPv6 support
+- Notification system
+- Metrics and monitoring
 
-IPv6 support
+---
 
-notification system
-
-metrics and monitoring
-
-provider plugin system
-
-Contributing
-
-Contributions are welcome.
-
-Before implementing features please read:
-
-/docs/AI_PROJECT_BRIEF.md
-/docs/ARCHITECTURE.md
-/docs/INITIAL_TASKS.md
-
-License
+## License
 
 MIT License

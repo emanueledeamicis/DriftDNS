@@ -117,7 +117,7 @@
                         @foreach (var h in _hostnames)
                         {
                             <option value="@h.Name" disabled="@h.AlreadyTracked">
-                                @h.Name@(h.AlreadyTracked ? " (già tracciato)" : "")
+                                @h.Name@(h.AlreadyTracked ? " (already tracked)" : "")
                             </option>
                         }
                     </select>
@@ -131,11 +131,7 @@
                 <label>TTL (seconds)</label>
                 <input class="form-control" type="number" @bind="_form.TTL" />
             </div>
-            <div class="mb-2 form-check">
-                <input class="form-check-input" type="checkbox" @bind="_form.Enabled" id="enabled" />
-                <label class="form-check-label" for="enabled">Enabled</label>
-            </div>
-            <button class="btn btn-success" @onclick="SaveEndpoint" disabled="@(_zonesLoading || _hostnamesLoading)">Save</button>
+<button class="btn btn-success" @onclick="SaveEndpoint" disabled="@(_zonesLoading || _hostnamesLoading)">Save</button>
             <button class="btn btn-secondary ms-2" @onclick="CancelForm">Cancel</button>
             @if (_error is not null) { <span class="text-danger ms-2">@_error</span> }
         </div>
