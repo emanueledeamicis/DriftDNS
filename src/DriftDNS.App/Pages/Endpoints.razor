@@ -116,7 +116,9 @@
                         <option value="">— select a hostname —</option>
                         @foreach (var h in _hostnames)
                         {
-                            <option value="@h">@h</option>
+                            <option value="@h.Name" disabled="@h.AlreadyTracked">
+                                @h.Name@(h.AlreadyTracked ? " (già tracciato)" : "")
+                            </option>
                         }
                     </select>
                 }
@@ -183,7 +185,7 @@
     private List<string> _zones = [];
     private bool _zonesLoading;
     private string? _zonesError;
-    private List<string> _hostnames = [];
+    private List<(string Name, bool AlreadyTracked)> _hostnames = [];
     private bool _hostnamesLoading;
     private string? _hostnamesError;
 
@@ -320,7 +322,15 @@
 
         try
         {
-            _hostnames = (await provider.ListHostnamesAsync(account, zoneName, recordType)).ToList();
+            var names = await provider.ListHostnamesAsync(account, zoneName, recordType);
+            _hostnames = names.Select(h => (
+                Name: h,
+                AlreadyTracked: _endpoints.Any(e =>
+                    e.Hostname == h &&
+                    e.ZoneName == zoneName &&
+                    e.RecordType == recordType &&
+                    e.Id != _form.Id)
+            )).ToList();
         }
         catch (Exception ex)
         {
