@@ -11,7 +11,10 @@
 
 <h1>Provider Accounts</h1>
 
-<button class="btn btn-primary mb-3" @onclick="ShowAddForm">+ Add Provider</button>
+@if (!_showForm)
+{
+    <button class="btn btn-primary mb-3" @onclick="ShowAddForm">+ Add Provider</button>
+}
 
 @if (_showForm)
 {
@@ -22,12 +25,24 @@
                 <label>Name</label>
                 <input class="form-control" @bind="_name" />
             </div>
-            <div class="mb-2">
-                <label>Provider Type</label>
-                <select class="form-select" @bind="_providerType">
-                    <option value="Route53">AWS Route53</option>
-                    <option value="Cloudflare">Cloudflare</option>
-                </select>
+            <div class="mb-3">
+                <label class="form-label">Provider Type</label>
+                <div class="d-flex gap-3 flex-wrap">
+                    <div class="provider-card @(_providerType == "Route53" ? "selected" : "")" @onclick='() => SelectProvider("Route53")'>
+                        <svg viewBox="0 0 80 52" width="64" height="42" xmlns="http://www.w3.org/2000/svg">
+                            <text x="40" y="30" text-anchor="middle" fill="#FF9900" font-size="24" font-weight="900" font-family="Arial">aws</text>
+                            <path d="M22 42 Q40 51 58 42" fill="none" stroke="#FF9900" stroke-width="3" stroke-linecap="round"/>
+                            <path d="M53 39 L59 42 L55 47" fill="none" stroke="#FF9900" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                        <span>AWS Route53</span>
+                    </div>
+                    <div class="provider-card @(_providerType == "Cloudflare" ? "selected" : "")" @onclick='() => SelectProvider("Cloudflare")'>
+                        <svg viewBox="0 0 80 52" width="64" height="42" xmlns="http://www.w3.org/2000/svg">
+                            <path fill="#F6821F" d="M56.5 29.4l.6-2.2c.7-2.5.4-4.8-1-6.4-1.3-1.5-3.3-2.4-5.6-2.4h-.5c-1-3.8-4.4-6.5-8.5-6.5-3 0-5.8 1.5-7.5 3.9-.7-.2-1.5-.4-2.3-.4-3.5 0-6.4 2.6-6.4 5.9 0 .4 0 .7.1 1-2.4.7-4.1 2.9-4.1 5.4 0 3.1 2.5 5.5 5.5 5.5h29c2.6 0 4.7-1.7 5.3-4.2l-.6.4z"/>
+                        </svg>
+                        <span>Cloudflare</span>
+                    </div>
+                </div>
             </div>
             @if (_providerType == "Route53")
             {
@@ -132,6 +147,14 @@
     private async Task LoadAsync() =>
         _accounts = await Db.ProviderAccounts.ToListAsync();
 
+    private void SelectProvider(string type)
+    {
+        _providerType = type;
+        _accessKey = string.Empty;
+        _secretKey = string.Empty;
+        _error = null;
+    }
+
     private void ShowAddForm()
     {
         _name = string.Empty;
@@ -164,6 +187,26 @@
         {
             _error = "Name is required.";
             return;
+        }
+
+        if (_providerType == "Cloudflare" && string.IsNullOrWhiteSpace(_accessKey) && !_editing)
+        {
+            _error = "API Token is required.";
+            return;
+        }
+
+        if (_providerType == "Route53" && !_editing)
+        {
+            if (string.IsNullOrWhiteSpace(_accessKey))
+            {
+                _error = "Access Key is required.";
+                return;
+            }
+            if (string.IsNullOrWhiteSpace(_secretKey))
+            {
+                _error = "Secret Key is required.";
+                return;
+            }
         }
 
         var credentials = _providerType == "Cloudflare"

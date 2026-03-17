@@ -12,7 +12,10 @@
 
 <h1>DNS Endpoints</h1>
 
-<button class="btn btn-primary mb-3" @onclick="ShowAddForm">+ Add Endpoint</button>
+@if (!_showForm)
+{
+    <button class="btn btn-primary mb-3" @onclick="ShowAddForm">+ Add Endpoint</button>
+}
 
 @if (_showNoProviderModal)
 {
