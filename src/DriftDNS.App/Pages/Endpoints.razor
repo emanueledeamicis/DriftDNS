@@ -2,8 +2,10 @@
 @using DriftDNS.Core.Models
 @using DriftDNS.Infrastructure.Data
 @using Microsoft.EntityFrameworkCore
+@using DriftDNS.Core.Interfaces
 @inject DriftDnsDbContext Db
 @inject NavigationManager Nav
+@inject IEnumerable<IDnsProvider> DnsProviders
 
 <PageTitle>DNS Endpoints – DriftDNS</PageTitle>
 
@@ -32,34 +34,95 @@
     </div>
 }
 
+@if (_deleteTarget is not null)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background:rgba(0,0,0,.5)">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Delete Endpoint</h5>
+                </div>
+                <div class="modal-body">
+                    <p>Are you sure you want to delete <strong>@_deleteTarget.Hostname</strong>?</p>
+                    <p class="text-danger mb-0">This action is irreversible.</p>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" @onclick="CancelDelete">Cancel</button>
+                    <button class="btn btn-danger" @onclick="ConfirmDelete">Delete</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
 @if (_showForm)
 {
     <div class="card mb-3">
         <div class="card-body">
             <h5>@(_editing ? "Edit" : "New") Endpoint</h5>
             <div class="mb-2">
-                <label>Hostname</label>
-                <input class="form-control" @bind="_form.Hostname" />
-            </div>
-            <div class="mb-2">
-                <label>Zone Name</label>
-                <input class="form-control" @bind="_form.ZoneName" />
-            </div>
-            <div class="mb-2">
-                <label>Record Type</label>
-                <select class="form-select" @bind="_form.RecordType">
-                    <option>A</option>
-                    <option>AAAA</option>
-                </select>
-            </div>
-            <div class="mb-2">
                 <label>Provider Account</label>
-                <select class="form-select" @bind="_form.ProviderAccountId">
+                <select class="form-select" value="@_form.ProviderAccountId" @onchange="OnProviderChanged">
                     @foreach (var p in _providers)
                     {
                         <option value="@p.Id">@p.Name</option>
                     }
                 </select>
+            </div>
+            <div class="mb-2">
+                <label>Zone</label>
+                @if (_zonesLoading)
+                {
+                    <div class="form-control text-muted">Loading zones…</div>
+                }
+                else if (_zonesError is not null)
+                {
+                    <input class="form-control" @bind="_form.ZoneName" placeholder="Enter zone manually" />
+                    <div class="form-text text-danger">@_zonesError</div>
+                }
+                else
+                {
+                    <select class="form-select" value="@_form.ZoneName" @onchange="OnZoneChanged">
+                        <option value="">— select a zone —</option>
+                        @foreach (var z in _zones)
+                        {
+                            <option value="@z">@z</option>
+                        }
+                    </select>
+                }
+            </div>
+            <div class="mb-2">
+                <label>Record Type</label>
+                <select class="form-select" value="@_form.RecordType" @onchange="OnRecordTypeChanged">
+                    <option>A</option>
+                    <option>AAAA</option>
+                </select>
+            </div>
+            <div class="mb-2">
+                <label>Hostname</label>
+                @if (_hostnamesLoading)
+                {
+                    <div class="form-control text-muted">Loading hostnames…</div>
+                }
+                else if (_hostnamesError is not null)
+                {
+                    <input class="form-control" @bind="_form.Hostname" placeholder="Enter hostname manually" />
+                    <div class="form-text text-danger">@_hostnamesError</div>
+                }
+                else if (_hostnames.Count > 0)
+                {
+                    <select class="form-select" @bind="_form.Hostname">
+                        <option value="">— select a hostname —</option>
+                        @foreach (var h in _hostnames)
+                        {
+                            <option value="@h">@h</option>
+                        }
+                    </select>
+                }
+                else
+                {
+                    <input class="form-control" @bind="_form.Hostname" placeholder="@(string.IsNullOrEmpty(_form.ZoneName) ? "Select a zone first" : "No records found, enter manually")" />
+                }
             </div>
             <div class="mb-2">
                 <label>TTL (seconds)</label>
@@ -69,7 +132,7 @@
                 <input class="form-check-input" type="checkbox" @bind="_form.Enabled" id="enabled" />
                 <label class="form-check-label" for="enabled">Enabled</label>
             </div>
-            <button class="btn btn-success" @onclick="SaveEndpoint">Save</button>
+            <button class="btn btn-success" @onclick="SaveEndpoint" disabled="@(_zonesLoading || _hostnamesLoading)">Save</button>
             <button class="btn btn-secondary ms-2" @onclick="CancelForm">Cancel</button>
             @if (_error is not null) { <span class="text-danger ms-2">@_error</span> }
         </div>
@@ -100,7 +163,7 @@
                 <td>@(ep.Enabled ? "Yes" : "No")</td>
                 <td>
                     <button class="btn btn-sm btn-outline-secondary" @onclick="() => EditEndpoint(ep)">Edit</button>
-                    <button class="btn btn-sm btn-outline-danger ms-1" @onclick="() => DeleteEndpoint(ep)">Delete</button>
+                    <button class="btn btn-sm btn-outline-danger ms-1" @onclick="() => AskDelete(ep)">Delete</button>
                 </td>
             </tr>
         }
@@ -115,6 +178,13 @@
     private bool _showNoProviderModal;
     private DnsEndpoint _form = new();
     private string? _error;
+    private DnsEndpoint? _deleteTarget;
+    private List<string> _zones = [];
+    private bool _zonesLoading;
+    private string? _zonesError;
+    private List<string> _hostnames = [];
+    private bool _hostnamesLoading;
+    private string? _hostnamesError;
 
     protected override async Task OnInitializedAsync() => await LoadAsync();
 
@@ -124,7 +194,7 @@
         _providers = await Db.ProviderAccounts.Where(p => p.IsEnabled).ToListAsync();
     }
 
-    private void ShowAddForm()
+    private async Task ShowAddForm()
     {
         if (_providers.Count == 0)
         {
@@ -136,11 +206,14 @@
         _editing = false;
         _showForm = true;
         _error = null;
+        _hostnames = [];
+        _hostnamesError = null;
+        await FetchZonesAsync(_providers[0].Id);
     }
 
     private void GoToProviders() => Nav.NavigateTo("/providers");
 
-    private void EditEndpoint(DnsEndpoint ep)
+    private async Task EditEndpoint(DnsEndpoint ep)
     {
         _form = new DnsEndpoint
         {
@@ -156,6 +229,106 @@
         _editing = true;
         _showForm = true;
         _error = null;
+        _hostnames = [];
+        _hostnamesError = null;
+        await FetchZonesAsync(ep.ProviderAccountId);
+        if (!string.IsNullOrEmpty(ep.ZoneName))
+            await FetchHostnamesAsync(ep.ProviderAccountId, ep.ZoneName, ep.RecordType);
+    }
+
+    private async Task OnProviderChanged(ChangeEventArgs e)
+    {
+        if (Guid.TryParse(e.Value?.ToString(), out var id))
+        {
+            _form.ProviderAccountId = id;
+            _form.ZoneName = string.Empty;
+            _form.Hostname = string.Empty;
+            _hostnames = [];
+            _hostnamesError = null;
+            await FetchZonesAsync(id);
+        }
+    }
+
+    private async Task OnZoneChanged(ChangeEventArgs e)
+    {
+        _form.ZoneName = e.Value?.ToString() ?? string.Empty;
+        _form.Hostname = string.Empty;
+        if (!string.IsNullOrEmpty(_form.ZoneName))
+            await FetchHostnamesAsync(_form.ProviderAccountId, _form.ZoneName, _form.RecordType);
+        else
+        {
+            _hostnames = [];
+            _hostnamesError = null;
+        }
+    }
+
+    private async Task OnRecordTypeChanged(ChangeEventArgs e)
+    {
+        _form.RecordType = e.Value?.ToString() ?? "A";
+        _form.Hostname = string.Empty;
+        if (!string.IsNullOrEmpty(_form.ZoneName))
+            await FetchHostnamesAsync(_form.ProviderAccountId, _form.ZoneName, _form.RecordType);
+        else
+        {
+            _hostnames = [];
+            _hostnamesError = null;
+        }
+    }
+
+    private async Task FetchZonesAsync(Guid providerAccountId)
+    {
+        var account = _providers.FirstOrDefault(p => p.Id == providerAccountId);
+        if (account is null) return;
+
+        var provider = DnsProviders.FirstOrDefault(p =>
+            p.Name.Equals(account.ProviderType, StringComparison.OrdinalIgnoreCase));
+        if (provider is null) return;
+
+        _zonesLoading = true;
+        _zonesError = null;
+        _zones = [];
+        StateHasChanged();
+
+        try
+        {
+            _zones = (await provider.ListZonesAsync(account)).ToList();
+        }
+        catch (Exception ex)
+        {
+            _zonesError = ex.Message;
+        }
+        finally
+        {
+            _zonesLoading = false;
+        }
+    }
+
+    private async Task FetchHostnamesAsync(Guid providerAccountId, string zoneName, string recordType)
+    {
+        var account = _providers.FirstOrDefault(p => p.Id == providerAccountId);
+        if (account is null) return;
+
+        var provider = DnsProviders.FirstOrDefault(p =>
+            p.Name.Equals(account.ProviderType, StringComparison.OrdinalIgnoreCase));
+        if (provider is null) return;
+
+        _hostnamesLoading = true;
+        _hostnamesError = null;
+        _hostnames = [];
+        StateHasChanged();
+
+        try
+        {
+            _hostnames = (await provider.ListHostnamesAsync(account, zoneName, recordType)).ToList();
+        }
+        catch (Exception ex)
+        {
+            _hostnamesError = ex.Message;
+        }
+        finally
+        {
+            _hostnamesLoading = false;
+        }
     }
 
     private async Task SaveEndpoint()
@@ -189,10 +362,15 @@
         await LoadAsync();
     }
 
-    private async Task DeleteEndpoint(DnsEndpoint ep)
+    private void AskDelete(DnsEndpoint ep) => _deleteTarget = ep;
+    private void CancelDelete() => _deleteTarget = null;
+
+    private async Task ConfirmDelete()
     {
-        Db.DnsEndpoints.Remove(ep);
+        if (_deleteTarget is null) return;
+        Db.DnsEndpoints.Remove(_deleteTarget);
         await Db.SaveChangesAsync();
+        _deleteTarget = null;
         await LoadAsync();
     }
 

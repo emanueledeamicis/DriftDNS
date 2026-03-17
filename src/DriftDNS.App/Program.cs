@@ -39,6 +39,12 @@ using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<DriftDnsDbContext>();
     db.Database.Migrate();
+
+    if (!db.AppSettings.Any())
+    {
+        db.AppSettings.Add(new DriftDNS.Core.Models.AppSettings());
+        db.SaveChanges();
+    }
 }
 
 if (!app.Environment.IsDevelopment())

@@ -11,6 +11,7 @@ public class DriftDnsDbContext : DbContext
     public DbSet<DnsEndpoint> DnsEndpoints => Set<DnsEndpoint>();
     public DbSet<SyncState> SyncStates => Set<SyncState>();
     public DbSet<SyncLog> SyncLogs => Set<SyncLog>();
+    public DbSet<AppSettings> AppSettings => Set<AppSettings>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

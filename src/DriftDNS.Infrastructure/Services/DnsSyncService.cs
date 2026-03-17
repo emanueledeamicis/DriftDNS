@@ -25,14 +25,20 @@ public class DnsSyncService : IDnsSyncService
         _logger = logger;
     }
 
-    public async Task RunSyncAsync(CancellationToken cancellationToken = default)
+    public async Task RunSyncAsync(CancellationToken cancellationToken = default, bool forceUpdate = false)
     {
-        _logger.LogInformation("DNS sync started");
+        _logger.LogInformation("DNS sync started (forceUpdate={ForceUpdate})", forceUpdate);
 
         var currentIp = await _ipResolver.ResolveAsync(cancellationToken);
         if (currentIp is null)
         {
             _logger.LogError("DNS sync aborted: could not resolve public IP");
+            var endpointIds = await _db.DnsEndpoints
+                .Where(e => e.Enabled)
+                .Select(e => e.Id)
+                .ToListAsync(cancellationToken);
+            foreach (var id in endpointIds)
+                await WriteLogAsync(id, SyncAction.Failed, null, null, "Could not resolve public IP");
             return;
         }
 
@@ -44,20 +50,20 @@ public class DnsSyncService : IDnsSyncService
 
         foreach (var endpoint in endpoints)
         {
-            await SyncEndpointAsync(endpoint, currentIp, cancellationToken);
+            await SyncEndpointAsync(endpoint, currentIp, forceUpdate, cancellationToken);
         }
 
         _logger.LogInformation("DNS sync completed");
     }
 
-    private async Task SyncEndpointAsync(DnsEndpoint endpoint, string currentIp, CancellationToken cancellationToken)
+    private async Task SyncEndpointAsync(DnsEndpoint endpoint, string currentIp, bool forceUpdate, CancellationToken cancellationToken)
     {
         var state = endpoint.SyncState ?? new SyncState { EndpointId = endpoint.Id };
 
         state.LastKnownPublicIp = currentIp;
         state.LastCheckAt = DateTime.UtcNow;
 
-        if (state.LastAppliedIp == currentIp)
+        if (!forceUpdate && state.LastAppliedIp == currentIp)
         {
             _logger.LogDebug("No change for {Hostname}", endpoint.Hostname);
             await WriteLogAsync(endpoint.Id, SyncAction.NoChange, state.LastAppliedIp, currentIp, "IP unchanged");

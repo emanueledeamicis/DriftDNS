@@ -3,7 +3,9 @@
 @using DriftDNS.Infrastructure.Data
 @using Microsoft.EntityFrameworkCore
 @using System.Text.Json
+@using DriftDNS.Core.Interfaces
 @inject DriftDnsDbContext Db
+@inject IEnumerable<IDnsProvider> DnsProviders
 
 <PageTitle>Providers – DriftDNS</PageTitle>
 
@@ -64,13 +66,43 @@
                 <td>@(p.IsEnabled ? "Yes" : "No")</td>
                 <td>@p.CreatedAt.ToString("g")</td>
                 <td>
-                    <button class="btn btn-sm btn-outline-secondary" @onclick="() => EditProvider(p)">Edit</button>
-                    <button class="btn btn-sm btn-outline-danger ms-1" @onclick="() => DeleteProvider(p)">Delete</button>
+                    <button class="btn btn-sm btn-outline-info" @onclick="() => TestProvider(p)" disabled="@_testing.Contains(p.Id)">
+                        @(_testing.Contains(p.Id) ? "Testing…" : "Test")
+                    </button>
+                    <button class="btn btn-sm btn-outline-secondary ms-1" @onclick="() => EditProvider(p)">Edit</button>
+                    <button class="btn btn-sm btn-outline-danger ms-1" @onclick="() => AskDelete(p)">Delete</button>
+                    @if (_testResults.TryGetValue(p.Id, out var result))
+                    {
+                        <span class="ms-2 @(result.Success ? "text-success" : "text-danger")">
+                            @(result.Success ? "✓ OK" : $"✗ {result.Message}")
+                        </span>
+                    }
                 </td>
             </tr>
         }
     </tbody>
 </table>
+
+@if (_deleteTarget is not null)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background:rgba(0,0,0,.5)">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Delete Provider</h5>
+                </div>
+                <div class="modal-body">
+                    <p>Are you sure you want to delete <strong>@_deleteTarget.Name</strong>?</p>
+                    <p class="text-danger mb-0">This action is irreversible.</p>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" @onclick="CancelDelete">Cancel</button>
+                    <button class="btn btn-danger" @onclick="ConfirmDelete">Delete</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
 
 @code {
     private List<ProviderAccount> _accounts = [];
@@ -83,6 +115,9 @@
     private string _secretKey = string.Empty;
     private bool _isEnabled = true;
     private string? _error;
+    private ProviderAccount? _deleteTarget;
+    private HashSet<Guid> _testing = [];
+    private Dictionary<Guid, (bool Success, string Message)> _testResults = [];
 
     protected override async Task OnInitializedAsync() => await LoadAsync();
 
@@ -157,12 +192,46 @@
         await LoadAsync();
     }
 
-    private async Task DeleteProvider(ProviderAccount p)
+    private void AskDelete(ProviderAccount p) => _deleteTarget = p;
+    private void CancelDelete() => _deleteTarget = null;
+
+    private async Task ConfirmDelete()
     {
-        Db.ProviderAccounts.Remove(p);
+        if (_deleteTarget is null) return;
+        Db.ProviderAccounts.Remove(_deleteTarget);
         await Db.SaveChangesAsync();
+        _deleteTarget = null;
         await LoadAsync();
     }
 
     private void CancelForm() => _showForm = false;
+
+    private async Task TestProvider(ProviderAccount account)
+    {
+        _testing.Add(account.Id);
+        _testResults.Remove(account.Id);
+        StateHasChanged();
+
+        var provider = DnsProviders.FirstOrDefault(p =>
+            p.Name.Equals(account.ProviderType, StringComparison.OrdinalIgnoreCase));
+
+        if (provider is null)
+        {
+            _testResults[account.Id] = (false, $"No provider implementation for '{account.ProviderType}'");
+        }
+        else
+        {
+            try
+            {
+                await provider.ValidateCredentialsAsync(account);
+                _testResults[account.Id] = (true, "Connection successful");
+            }
+            catch (Exception ex)
+            {
+                _testResults[account.Id] = (false, ex.Message);
+            }
+        }
+
+        _testing.Remove(account.Id);
+    }
 }

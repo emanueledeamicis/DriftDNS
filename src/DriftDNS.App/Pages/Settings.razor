@@ -1,0 +1,55 @@
+@page "/settings"
+@using DriftDNS.Core.Models
+@using DriftDNS.Infrastructure.Data
+@inject DriftDnsDbContext Db
+
+<PageTitle>Settings – DriftDNS</PageTitle>
+
+<h1>Settings</h1>
+
+@if (_settings is not null)
+{
+    <div class="card mt-3" style="max-width:400px">
+        <div class="card-body">
+            <h5 class="card-title">Sync</h5>
+            <div class="mb-3">
+                <label class="form-label">Check interval (minutes)</label>
+                <input class="form-control" type="number" min="1" max="1440" @bind="_syncInterval" />
+                <div class="form-text">How often DriftDNS checks for an IP change. The new value takes effect after the next sync cycle.</div>
+            </div>
+            <button class="btn btn-primary" @onclick="Save">Save</button>
+            @if (_saved) { <span class="ms-3 text-success">Saved.</span> }
+            @if (_error is not null) { <span class="ms-3 text-danger">@_error</span> }
+        </div>
+    </div>
+}
+
+@code {
+    private AppSettings? _settings;
+    private int _syncInterval;
+    private bool _saved;
+    private string? _error;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _settings = await Db.AppSettings.FindAsync(1);
+        if (_settings is not null)
+            _syncInterval = _settings.SyncIntervalMinutes;
+    }
+
+    private async Task Save()
+    {
+        _saved = false;
+        _error = null;
+
+        if (_syncInterval < 1)
+        {
+            _error = "Interval must be at least 1 minute.";
+            return;
+        }
+
+        _settings!.SyncIntervalMinutes = _syncInterval;
+        await Db.SaveChangesAsync();
+        _saved = true;
+    }
+}
