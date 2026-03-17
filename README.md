@@ -92,10 +92,26 @@ Sync interval and log retention can be configured directly from the Settings pag
 
 ## Updating
 
+**Docker Compose:**
 ```bash
 docker compose pull
 docker compose up -d
 ```
+
+**Docker Run:**
+```bash
+docker pull catokx/driftdns:latest
+docker stop driftdns
+docker rm driftdns
+docker run -d \
+  --name driftdns \
+  --restart unless-stopped \
+  -p 8080:8080 \
+  -v driftdns-data:/app/data \
+  catokx/driftdns:latest
+```
+
+The named volume `driftdns-data` persists across updates, so your data is safe.
 
 ---
 
