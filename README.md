@@ -35,7 +35,7 @@ DriftDNS solves this by automatically:
 | Provider | Status |
 |---|---|
 | AWS Route53 | ✓ Supported |
-| Cloudflare | Planned |
+| Cloudflare | ✓ Supported |
 | Azure DNS | Planned |
 | Google Cloud DNS | Planned |
 
@@ -147,7 +147,8 @@ dotnet run --project src/DriftDNS.App
 
 ## Roadmap
 
-- Cloudflare provider
+- Azure DNS provider
+- Google Cloud DNS provider
 - IPv6 support
 - Notification system
 - Metrics and monitoring
