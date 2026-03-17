@@ -1,34 +1,44 @@
 using DriftDNS.Core.Models;
+using FluentAssertions;
+using NUnit.Framework;
 
 namespace DriftDNS.Tests;
 
+[TestFixture]
 public class SyncLogTests
 {
-    [Fact]
+    [Test]
     public void SyncLog_DefaultAction_IsNoChange()
     {
         var log = new SyncLog();
-        Assert.Equal(SyncAction.NoChange, log.Action);
+        log.Action.Should().Be(SyncAction.NoChange);
     }
 
-    [Fact]
+    [Test]
     public void SyncLog_Id_IsGenerated()
     {
         var log = new SyncLog();
-        Assert.NotEqual(Guid.Empty, log.Id);
+        log.Id.Should().NotBe(Guid.Empty);
     }
 
-    [Fact]
+    [Test]
     public void ProviderAccount_IsEnabled_DefaultsTrue()
     {
         var account = new ProviderAccount();
-        Assert.True(account.IsEnabled);
+        account.IsEnabled.Should().BeTrue();
     }
 
-    [Fact]
+    [Test]
     public void DnsEndpoint_RecordType_DefaultsToA()
     {
         var endpoint = new DnsEndpoint();
-        Assert.Equal("A", endpoint.RecordType);
+        endpoint.RecordType.Should().Be("A");
+    }
+
+    [Test]
+    public void AppSettings_LogRetentionHours_DefaultsTwentyFour()
+    {
+        var settings = new AppSettings();
+        settings.LogRetentionHours.Should().Be(24);
     }
 }
