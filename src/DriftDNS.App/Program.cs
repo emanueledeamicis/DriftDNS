@@ -22,6 +22,7 @@ builder.Services.AddHttpClient();
 // Core services
 builder.Services.AddScoped<IPublicIpResolver, PublicIpResolver>();
 builder.Services.AddScoped<IDnsSyncService, DnsSyncService>();
+builder.Services.AddSingleton<IUpdateChecker, GitHubUpdateChecker>();
 
 // DNS providers
 builder.Services.AddScoped<IDnsProvider, Route53DnsProvider>();

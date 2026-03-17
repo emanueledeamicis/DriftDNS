@@ -5,10 +5,20 @@
 @inject IPublicIpResolver IpResolver
 @inject DriftDnsDbContext Db
 @inject IDnsSyncService SyncService
+@inject IUpdateChecker UpdateChecker
 
 <PageTitle>Overview – DriftDNS</PageTitle>
 
 <h1>Overview</h1>
+
+@if (_updateVersion is not null && !_updateDismissed)
+{
+    <div class="alert alert-info alert-dismissible d-flex align-items-center gap-2 mt-2" role="alert">
+        <span>&#11014; A new version is available: <strong>v@_updateVersion</strong></span>
+        <a href="https://github.com/emanueledeamicis/DriftDNS/releases/latest" target="_blank" class="btn btn-sm btn-outline-primary ms-2">View release</a>
+        <button type="button" class="btn-close ms-auto" @onclick="() => _updateDismissed = true"></button>
+    </div>
+}
 
 <div class="row mt-3">
     <div class="col-md-3">
@@ -62,6 +72,11 @@
     private DateTime? _lastSync;
     private bool _syncing;
     private string? _syncMessage;
+    private string? _updateVersion;
+    private bool _updateDismissed;
+
+    private static readonly Version _currentVersion =
+        typeof(Index).Assembly.GetName().Version ?? new Version(0, 0, 0);
 
     protected override async Task OnInitializedAsync()
     {
@@ -72,6 +87,10 @@
             .OrderByDescending(l => l.Timestamp)
             .Select(l => (DateTime?)l.Timestamp)
             .FirstOrDefaultAsync();
+
+        var latest = await UpdateChecker.GetLatestVersionAsync();
+        if (latest is not null && Version.TryParse(latest, out var latestVersion) && latestVersion > _currentVersion)
+            _updateVersion = latest;
     }
 
     private async Task TriggerSync()
