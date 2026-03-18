@@ -57,7 +57,12 @@
 
 <div class="mt-4">
     <button class="btn btn-primary" @onclick="TriggerSync" disabled="@_syncing">
-        <i class="bi @(_syncing ? "bi-arrow-repeat spin" : "bi-arrow-repeat") me-1"></i>@(_syncing ? "Syncing..." : "Sync Now")
+        @if (_syncing) {
+            <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+        } else {
+            <i class="bi bi-arrow-repeat me-1"></i>
+        }
+        @(_syncing ? "Syncing..." : "Sync Now")
     </button>
     @if (_syncMessage is not null)
     {

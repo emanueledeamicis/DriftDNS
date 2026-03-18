@@ -51,8 +51,15 @@
                     <p class="text-danger mb-0">This action is irreversible.</p>
                 </div>
                 <div class="modal-footer">
-                    <button class="btn btn-secondary" @onclick="CancelDelete"><i class="bi bi-x-lg me-1"></i>Cancel</button>
-                    <button class="btn btn-danger" @onclick="ConfirmDelete"><i class="bi bi-trash me-1"></i>Delete</button>
+                    <button class="btn btn-secondary" @onclick="CancelDelete" disabled="@_deleting"><i class="bi bi-x-lg me-1"></i>Cancel</button>
+                    <button class="btn btn-danger" @onclick="ConfirmDelete" disabled="@_deleting">
+                        @if (_deleting) {
+                            <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+                        } else {
+                            <i class="bi bi-trash me-1"></i>
+                        }
+                        @(_deleting ? "Deleting..." : "Delete")
+                    </button>
                 </div>
             </div>
         </div>
@@ -134,8 +141,15 @@
                 <label>TTL (seconds)</label>
                 <input class="form-control" type="number" @bind="_form.TTL" />
             </div>
-<button class="btn btn-success" @onclick="SaveEndpoint" disabled="@(_zonesLoading || _hostnamesLoading)"><i class="bi bi-check-lg me-1"></i>Save</button>
-            <button class="btn btn-secondary ms-2" @onclick="CancelForm"><i class="bi bi-x-lg me-1"></i>Cancel</button>
+<button class="btn btn-success" @onclick="SaveEndpoint" disabled="@(_zonesLoading || _hostnamesLoading || _saving)">
+                @if (_saving) {
+                    <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+                } else {
+                    <i class="bi bi-check-lg me-1"></i>
+                }
+                @(_saving ? "Saving..." : "Save")
+            </button>
+            <button class="btn btn-secondary ms-2" @onclick="CancelForm" disabled="@_saving"><i class="bi bi-x-lg me-1"></i>Cancel</button>
             @if (_error is not null) { <span class="text-danger ms-2">@_error</span> }
         </div>
     </div>
@@ -205,6 +219,8 @@ else
     private List<(string Name, bool AlreadyTracked)> _hostnames = [];
     private bool _hostnamesLoading;
     private string? _hostnamesError;
+    private bool _saving;
+    private bool _deleting;
 
     protected override async Task OnInitializedAsync() => await LoadAsync();
 
@@ -367,34 +383,42 @@ else
             return;
         }
 
-        if (_editing)
+        _saving = true;
+        try
         {
-            var existing = await Db.DnsEndpoints.FindAsync(_form.Id);
-            if (existing is not null)
+            if (_editing)
             {
-                existing.Hostname = _form.Hostname;
-                existing.ZoneName = _form.ZoneName;
-                existing.RecordType = _form.RecordType;
-                existing.ProviderAccountId = _form.ProviderAccountId;
-                existing.TTL = _form.TTL;
-                existing.Enabled = _form.Enabled;
+                var existing = await Db.DnsEndpoints.FindAsync(_form.Id);
+                if (existing is not null)
+                {
+                    existing.Hostname = _form.Hostname;
+                    existing.ZoneName = _form.ZoneName;
+                    existing.RecordType = _form.RecordType;
+                    existing.ProviderAccountId = _form.ProviderAccountId;
+                    existing.TTL = _form.TTL;
+                    existing.Enabled = _form.Enabled;
+                }
             }
-        }
-        else
-        {
-            _form.Id = Guid.NewGuid();
-            _form.CreatedAt = DateTime.UtcNow;
-            Db.DnsEndpoints.Add(_form);
+            else
+            {
+                _form.Id = Guid.NewGuid();
+                _form.CreatedAt = DateTime.UtcNow;
+                Db.DnsEndpoints.Add(_form);
+                await Db.SaveChangesAsync();
+                await SyncService.SyncEndpointAsync(_form.Id);
+                _showForm = false;
+                await LoadAsync();
+                return;
+            }
+
             await Db.SaveChangesAsync();
-            await SyncService.SyncEndpointAsync(_form.Id);
             _showForm = false;
             await LoadAsync();
-            return;
         }
-
-        await Db.SaveChangesAsync();
-        _showForm = false;
-        await LoadAsync();
+        finally
+        {
+            _saving = false;
+        }
     }
 
     private void AskDelete(DnsEndpoint ep) => _deleteTarget = ep;
@@ -403,10 +427,18 @@ else
     private async Task ConfirmDelete()
     {
         if (_deleteTarget is null) return;
-        Db.DnsEndpoints.Remove(_deleteTarget);
-        await Db.SaveChangesAsync();
-        _deleteTarget = null;
-        await LoadAsync();
+        _deleting = true;
+        try
+        {
+            Db.DnsEndpoints.Remove(_deleteTarget);
+            await Db.SaveChangesAsync();
+            _deleteTarget = null;
+            await LoadAsync();
+        }
+        finally
+        {
+            _deleting = false;
+        }
     }
 
     private void CancelForm() => _showForm = false;
