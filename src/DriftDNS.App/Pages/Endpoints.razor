@@ -14,7 +14,7 @@
 
 @if (!_showForm)
 {
-    <button class="btn btn-primary mb-3" @onclick="ShowAddForm">+ Add Endpoint</button>
+    <button class="btn btn-primary mb-3" @onclick="ShowAddForm"><i class="bi bi-plus-lg me-1"></i>Add Endpoint</button>
 }
 
 @if (_showNoProviderModal)
@@ -30,8 +30,8 @@
                     <p>You need at least one active provider account before adding a DNS endpoint.</p>
                 </div>
                 <div class="modal-footer">
-                    <button class="btn btn-secondary" @onclick="() => _showNoProviderModal = false">Cancel</button>
-                    <button class="btn btn-primary" @onclick="GoToProviders">Configure a Provider</button>
+                    <button class="btn btn-secondary" @onclick="() => _showNoProviderModal = false"><i class="bi bi-x-lg me-1"></i>Cancel</button>
+                    <button class="btn btn-primary" @onclick="GoToProviders"><i class="bi bi-gear me-1"></i>Configure a Provider</button>
                 </div>
             </div>
         </div>
@@ -51,8 +51,15 @@
                     <p class="text-danger mb-0">This action is irreversible.</p>
                 </div>
                 <div class="modal-footer">
-                    <button class="btn btn-secondary" @onclick="CancelDelete">Cancel</button>
-                    <button class="btn btn-danger" @onclick="ConfirmDelete">Delete</button>
+                    <button class="btn btn-secondary" @onclick="CancelDelete" disabled="@_deleting"><i class="bi bi-x-lg me-1"></i>Cancel</button>
+                    <button class="btn btn-danger" @onclick="ConfirmDelete" disabled="@_deleting">
+                        @if (_deleting) {
+                            <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+                        } else {
+                            <i class="bi bi-trash me-1"></i>
+                        }
+                        @(_deleting ? "Deleting..." : "Delete")
+                    </button>
                 </div>
             </div>
         </div>
@@ -134,43 +141,68 @@
                 <label>TTL (seconds)</label>
                 <input class="form-control" type="number" @bind="_form.TTL" />
             </div>
-<button class="btn btn-success" @onclick="SaveEndpoint" disabled="@(_zonesLoading || _hostnamesLoading)">Save</button>
-            <button class="btn btn-secondary ms-2" @onclick="CancelForm">Cancel</button>
+<button class="btn btn-success" @onclick="SaveEndpoint" disabled="@(_zonesLoading || _hostnamesLoading || _saving)">
+                @if (_saving) {
+                    <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+                } else {
+                    <i class="bi bi-check-lg me-1"></i>
+                }
+                @(_saving ? "Saving..." : "Save")
+            </button>
+            <button class="btn btn-secondary ms-2" @onclick="CancelForm" disabled="@_saving"><i class="bi bi-x-lg me-1"></i>Cancel</button>
             @if (_error is not null) { <span class="text-danger ms-2">@_error</span> }
         </div>
     </div>
 }
 
-<table class="table table-striped">
-    <thead>
-        <tr>
-            <th>Hostname</th>
-            <th>Zone</th>
-            <th>Type</th>
-            <th>Provider</th>
-            <th>TTL</th>
-            <th>Enabled</th>
-            <th></th>
-        </tr>
-    </thead>
-    <tbody>
-        @foreach (var ep in _endpoints)
-        {
-            <tr>
-                <td>@ep.Hostname</td>
-                <td>@ep.ZoneName</td>
-                <td>@ep.RecordType</td>
-                <td>@ep.ProviderAccount?.Name</td>
-                <td>@ep.TTL</td>
-                <td>@(ep.Enabled ? "Yes" : "No")</td>
-                <td>
-                    <button class="btn btn-sm btn-outline-secondary" @onclick="() => EditEndpoint(ep)">Edit</button>
-                    <button class="btn btn-sm btn-outline-danger ms-1" @onclick="() => AskDelete(ep)">Delete</button>
-                </td>
-            </tr>
-        }
-    </tbody>
-</table>
+@if (_endpoints.Count == 0)
+{
+    <p class="text-muted">No endpoints configured.</p>
+}
+else
+{
+    @foreach (var group in _endpoints.GroupBy(e => e.ZoneName).OrderBy(g => g.Key))
+    {
+        <div class="zone-header mt-4 mb-0">
+            <span class="zone-label">Domain</span>
+            <span class="zone-name">@group.Key</span>
+            <span class="zone-count">@group.Count() record@(group.Count() == 1 ? "" : "s")</span>
+        </div>
+        <table class="table table-striped endpoint-table mb-4">
+            <colgroup>
+                <col class="col-hostname" />
+                <col class="col-type" />
+                <col class="col-provider" />
+                <col class="col-ttl" />
+                <col class="col-actions" />
+            </colgroup>
+            <thead>
+                <tr>
+                    <th>Hostname</th>
+                    <th>Type</th>
+                    <th>Provider</th>
+                    <th>TTL</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var ep in group.OrderBy(e => e.Hostname))
+                {
+                    <tr>
+                        <td>@ep.Hostname</td>
+                        <td>@ep.RecordType</td>
+                        <td>@ep.ProviderAccount?.Name</td>
+                        <td>@ep.TTL</td>
+                        <td class="text-end">
+                            <button class="btn btn-sm btn-outline-secondary" @onclick="() => EditEndpoint(ep)"><i class="bi bi-pencil me-1"></i>Edit</button>
+                            <button class="btn btn-sm btn-outline-danger ms-1" @onclick="() => AskDelete(ep)"><i class="bi bi-trash me-1"></i>Delete</button>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+}
 
 @code {
     private List<DnsEndpoint> _endpoints = [];
@@ -187,6 +219,8 @@
     private List<(string Name, bool AlreadyTracked)> _hostnames = [];
     private bool _hostnamesLoading;
     private string? _hostnamesError;
+    private bool _saving;
+    private bool _deleting;
 
     protected override async Task OnInitializedAsync() => await LoadAsync();
 
@@ -349,34 +383,42 @@
             return;
         }
 
-        if (_editing)
+        _saving = true;
+        try
         {
-            var existing = await Db.DnsEndpoints.FindAsync(_form.Id);
-            if (existing is not null)
+            if (_editing)
             {
-                existing.Hostname = _form.Hostname;
-                existing.ZoneName = _form.ZoneName;
-                existing.RecordType = _form.RecordType;
-                existing.ProviderAccountId = _form.ProviderAccountId;
-                existing.TTL = _form.TTL;
-                existing.Enabled = _form.Enabled;
+                var existing = await Db.DnsEndpoints.FindAsync(_form.Id);
+                if (existing is not null)
+                {
+                    existing.Hostname = _form.Hostname;
+                    existing.ZoneName = _form.ZoneName;
+                    existing.RecordType = _form.RecordType;
+                    existing.ProviderAccountId = _form.ProviderAccountId;
+                    existing.TTL = _form.TTL;
+                    existing.Enabled = _form.Enabled;
+                }
             }
-        }
-        else
-        {
-            _form.Id = Guid.NewGuid();
-            _form.CreatedAt = DateTime.UtcNow;
-            Db.DnsEndpoints.Add(_form);
+            else
+            {
+                _form.Id = Guid.NewGuid();
+                _form.CreatedAt = DateTime.UtcNow;
+                Db.DnsEndpoints.Add(_form);
+                await Db.SaveChangesAsync();
+                await SyncService.SyncEndpointAsync(_form.Id);
+                _showForm = false;
+                await LoadAsync();
+                return;
+            }
+
             await Db.SaveChangesAsync();
-            await SyncService.SyncEndpointAsync(_form.Id);
             _showForm = false;
             await LoadAsync();
-            return;
         }
-
-        await Db.SaveChangesAsync();
-        _showForm = false;
-        await LoadAsync();
+        finally
+        {
+            _saving = false;
+        }
     }
 
     private void AskDelete(DnsEndpoint ep) => _deleteTarget = ep;
@@ -385,10 +427,18 @@
     private async Task ConfirmDelete()
     {
         if (_deleteTarget is null) return;
-        Db.DnsEndpoints.Remove(_deleteTarget);
-        await Db.SaveChangesAsync();
-        _deleteTarget = null;
-        await LoadAsync();
+        _deleting = true;
+        try
+        {
+            Db.DnsEndpoints.Remove(_deleteTarget);
+            await Db.SaveChangesAsync();
+            _deleteTarget = null;
+            await LoadAsync();
+        }
+        finally
+        {
+            _deleting = false;
+        }
     }
 
     private void CancelForm() => _showForm = false;

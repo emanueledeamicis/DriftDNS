@@ -15,7 +15,7 @@
 {
     <div class="alert alert-info alert-dismissible d-flex align-items-center gap-2 mt-2" role="alert">
         <span>&#11014; A new version is available: <strong>v@_updateVersion</strong></span>
-        <a href="https://github.com/emanueledeamicis/DriftDNS/releases/latest" target="_blank" class="btn btn-sm btn-outline-primary ms-2">View release</a>
+        <a href="https://github.com/emanueledeamicis/DriftDNS/releases/latest" target="_blank" class="btn btn-sm btn-outline-primary ms-2"><i class="bi bi-box-arrow-up-right me-1"></i>View release</a>
         <button type="button" class="btn-close ms-auto" @onclick="() => _updateDismissed = true"></button>
     </div>
 }
@@ -57,6 +57,11 @@
 
 <div class="mt-4">
     <button class="btn btn-primary" @onclick="TriggerSync" disabled="@_syncing">
+        @if (_syncing) {
+            <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+        } else {
+            <i class="bi bi-arrow-repeat me-1"></i>
+        }
         @(_syncing ? "Syncing..." : "Sync Now")
     </button>
     @if (_syncMessage is not null)

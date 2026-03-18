@@ -21,7 +21,14 @@
         <option value="100">100 per page</option>
     </select>
     <span class="text-muted small">@_totalCount total</span>
-    <button class="btn btn-outline-secondary btn-sm ms-auto" @onclick="LoadAsync">&#8635; Refresh</button>
+    <button class="btn btn-outline-secondary btn-sm ms-auto" @onclick="LoadAsync" disabled="@_loading">
+        @if (_loading) {
+            <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+        } else {
+            <i class="bi bi-arrow-clockwise me-1"></i>
+        }
+        @(_loading ? "Loading..." : "Refresh")
+    </button>
 </div>
 
 <table class="table table-sm table-striped">
@@ -53,9 +60,9 @@
 @if (TotalPages > 1)
 {
     <div class="d-flex align-items-center gap-2">
-        <button class="btn btn-outline-secondary btn-sm" @onclick="() => ChangePage(_page - 1)" disabled="@(_page <= 1)">&#8249; Prev</button>
+        <button class="btn btn-outline-secondary btn-sm" @onclick="() => ChangePage(_page - 1)" disabled="@(_page <= 1 || _loading)"><i class="bi bi-chevron-left me-1"></i>Prev</button>
         <span class="small">Page @_page of @TotalPages</span>
-        <button class="btn btn-outline-secondary btn-sm" @onclick="() => ChangePage(_page + 1)" disabled="@(_page >= TotalPages)">Next &#8250;</button>
+        <button class="btn btn-outline-secondary btn-sm" @onclick="() => ChangePage(_page + 1)" disabled="@(_page >= TotalPages || _loading)">Next<i class="bi bi-chevron-right ms-1"></i></button>
     </div>
 }
 
@@ -65,6 +72,7 @@
     private int _pageSize = 25;
     private string _actionFilter = "";
     private int _totalCount;
+    private bool _loading;
 
     private int TotalPages => (int)Math.Ceiling((double)_totalCount / _pageSize);
 
@@ -72,17 +80,25 @@
 
     private async Task LoadAsync()
     {
-        var query = Db.SyncLogs.Include(l => l.Endpoint).AsQueryable();
+        _loading = true;
+        try
+        {
+            var query = Db.SyncLogs.Include(l => l.Endpoint).AsQueryable();
 
-        if (!string.IsNullOrEmpty(_actionFilter))
-            query = query.Where(l => l.Action == _actionFilter);
+            if (!string.IsNullOrEmpty(_actionFilter))
+                query = query.Where(l => l.Action == _actionFilter);
 
-        _totalCount = await query.CountAsync();
-        _logs = await query
-            .OrderByDescending(l => l.Timestamp)
-            .Skip((_page - 1) * _pageSize)
-            .Take(_pageSize)
-            .ToListAsync();
+            _totalCount = await query.CountAsync();
+            _logs = await query
+                .OrderByDescending(l => l.Timestamp)
+                .Skip((_page - 1) * _pageSize)
+                .Take(_pageSize)
+                .ToListAsync();
+        }
+        finally
+        {
+            _loading = false;
+        }
     }
 
     private async Task ChangePage(int page)

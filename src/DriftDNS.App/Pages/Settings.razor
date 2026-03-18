@@ -24,8 +24,22 @@
                 <input class="form-control" type="number" min="1" max="8760" @bind="_logRetentionHours" />
                 <div class="form-text">Logs older than this are automatically deleted after each sync cycle.</div>
             </div>
-            <button class="btn btn-primary" @onclick="Save">Save</button>
-            <button class="btn btn-outline-danger ms-2" @onclick="PurgeNow">Purge now</button>
+            <button class="btn btn-primary" @onclick="Save" disabled="@(_saving || _purging)">
+                @if (_saving) {
+                    <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+                } else {
+                    <i class="bi bi-floppy me-1"></i>
+                }
+                @(_saving ? "Saving..." : "Save")
+            </button>
+            <button class="btn btn-outline-danger ms-2" @onclick="PurgeNow" disabled="@(_saving || _purging)">
+                @if (_purging) {
+                    <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+                } else {
+                    <i class="bi bi-trash me-1"></i>
+                }
+                @(_purging ? "Purging..." : "Purge now")
+            </button>
             @if (_saved) { <span class="ms-3 text-success">Saved.</span> }
             @if (_purged) { <span class="ms-3 text-success">Logs purged.</span> }
             @if (_error is not null) { <span class="ms-3 text-danger">@_error</span> }
@@ -39,6 +53,8 @@
     private int _logRetentionHours;
     private bool _saved;
     private bool _purged;
+    private bool _saving;
+    private bool _purging;
     private string? _error;
 
     protected override async Task OnInitializedAsync()
@@ -69,10 +85,18 @@
             return;
         }
 
-        _settings!.SyncIntervalMinutes = _syncInterval;
-        _settings!.LogRetentionHours = _logRetentionHours;
-        await Db.SaveChangesAsync();
-        _saved = true;
+        _saving = true;
+        try
+        {
+            _settings!.SyncIntervalMinutes = _syncInterval;
+            _settings!.LogRetentionHours = _logRetentionHours;
+            await Db.SaveChangesAsync();
+            _saved = true;
+        }
+        finally
+        {
+            _saving = false;
+        }
     }
 
     private async Task PurgeNow()
@@ -81,10 +105,18 @@
         _purged = false;
         _error = null;
 
-        var cutoff = DateTime.UtcNow.AddHours(-_logRetentionHours);
-        await Db.SyncLogs
-            .Where(l => l.Timestamp < cutoff)
-            .ExecuteDeleteAsync();
-        _purged = true;
+        _purging = true;
+        try
+        {
+            var cutoff = DateTime.UtcNow.AddHours(-_logRetentionHours);
+            await Db.SyncLogs
+                .Where(l => l.Timestamp < cutoff)
+                .ExecuteDeleteAsync();
+            _purged = true;
+        }
+        finally
+        {
+            _purging = false;
+        }
     }
 }

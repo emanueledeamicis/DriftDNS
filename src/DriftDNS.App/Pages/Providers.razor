@@ -13,7 +13,7 @@
 
 @if (!_showForm)
 {
-    <button class="btn btn-primary mb-3" @onclick="ShowAddForm">+ Add Provider</button>
+    <button class="btn btn-primary mb-3" @onclick="ShowAddForm"><i class="bi bi-plus-lg me-1"></i>Add Provider</button>
 }
 
 @if (_showForm)
@@ -63,8 +63,15 @@
                     <div class="form-text">Create a token with <strong>Zone:Read</strong> and <strong>DNS:Edit</strong> permissions.</div>
                 </div>
             }
-<button class="btn btn-success" @onclick="SaveProvider">Save</button>
-            <button class="btn btn-secondary ms-2" @onclick="CancelForm">Cancel</button>
+<button class="btn btn-success" @onclick="SaveProvider" disabled="@_saving">
+                @if (_saving) {
+                    <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+                } else {
+                    <i class="bi bi-check-lg me-1"></i>
+                }
+                @(_saving ? "Saving..." : "Save")
+            </button>
+            <button class="btn btn-secondary ms-2" @onclick="CancelForm" disabled="@_saving"><i class="bi bi-x-lg me-1"></i>Cancel</button>
             @if (_error is not null) { <span class="text-danger ms-2">@_error</span> }
         </div>
     </div>
@@ -90,10 +97,15 @@
                 <td>@p.CreatedAt.ToString("g")</td>
                 <td>
                     <button class="btn btn-sm btn-outline-info" @onclick="() => TestProvider(p)" disabled="@_testing.Contains(p.Id)">
+                        @if (_testing.Contains(p.Id)) {
+                            <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+                        } else {
+                            <i class="bi bi-wifi me-1"></i>
+                        }
                         @(_testing.Contains(p.Id) ? "Testing…" : "Test")
                     </button>
-                    <button class="btn btn-sm btn-outline-secondary ms-1" @onclick="() => EditProvider(p)">Edit</button>
-                    <button class="btn btn-sm btn-outline-danger ms-1" @onclick="() => AskDelete(p)">Delete</button>
+                    <button class="btn btn-sm btn-outline-secondary ms-1" @onclick="() => EditProvider(p)"><i class="bi bi-pencil me-1"></i>Edit</button>
+                    <button class="btn btn-sm btn-outline-danger ms-1" @onclick="() => AskDelete(p)"><i class="bi bi-trash me-1"></i>Delete</button>
                     @if (_testResults.TryGetValue(p.Id, out var result))
                     {
                         <span class="ms-2 @(result.Success ? "text-success" : "text-danger")">
@@ -119,8 +131,15 @@
                     <p class="text-danger mb-0">This action is irreversible.</p>
                 </div>
                 <div class="modal-footer">
-                    <button class="btn btn-secondary" @onclick="CancelDelete">Cancel</button>
-                    <button class="btn btn-danger" @onclick="ConfirmDelete">Delete</button>
+                    <button class="btn btn-secondary" @onclick="CancelDelete" disabled="@_deleting"><i class="bi bi-x-lg me-1"></i>Cancel</button>
+                    <button class="btn btn-danger" @onclick="ConfirmDelete" disabled="@_deleting">
+                        @if (_deleting) {
+                            <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+                        } else {
+                            <i class="bi bi-trash me-1"></i>
+                        }
+                        @(_deleting ? "Deleting..." : "Delete")
+                    </button>
                 </div>
             </div>
         </div>
@@ -141,6 +160,8 @@
     private ProviderAccount? _deleteTarget;
     private HashSet<Guid> _testing = [];
     private Dictionary<Guid, (bool Success, string Message)> _testResults = [];
+    private bool _saving;
+    private bool _deleting;
 
     protected override async Task OnInitializedAsync() => await LoadAsync();
 
@@ -209,36 +230,44 @@
             }
         }
 
-        var credentials = _providerType == "Cloudflare"
-            ? JsonSerializer.Serialize(new { ApiToken = _accessKey })
-            : JsonSerializer.Serialize(new { AccessKey = _accessKey, SecretKey = _secretKey });
-
-        if (_editing)
+        _saving = true;
+        try
         {
-            var existing = await Db.ProviderAccounts.FindAsync(_editId);
-            if (existing is not null)
+            var credentials = _providerType == "Cloudflare"
+                ? JsonSerializer.Serialize(new { ApiToken = _accessKey })
+                : JsonSerializer.Serialize(new { AccessKey = _accessKey, SecretKey = _secretKey });
+
+            if (_editing)
             {
-                existing.Name = _name;
-                existing.ProviderType = _providerType;
-                existing.IsEnabled = _isEnabled;
-                if (!string.IsNullOrWhiteSpace(_accessKey))
-                    existing.EncryptedCredentials = credentials;
+                var existing = await Db.ProviderAccounts.FindAsync(_editId);
+                if (existing is not null)
+                {
+                    existing.Name = _name;
+                    existing.ProviderType = _providerType;
+                    existing.IsEnabled = _isEnabled;
+                    if (!string.IsNullOrWhiteSpace(_accessKey))
+                        existing.EncryptedCredentials = credentials;
+                }
             }
-        }
-        else
-        {
-            Db.ProviderAccounts.Add(new ProviderAccount
+            else
             {
-                Name = _name,
-                ProviderType = _providerType,
-                EncryptedCredentials = credentials,
-                IsEnabled = _isEnabled,
-            });
-        }
+                Db.ProviderAccounts.Add(new ProviderAccount
+                {
+                    Name = _name,
+                    ProviderType = _providerType,
+                    EncryptedCredentials = credentials,
+                    IsEnabled = _isEnabled,
+                });
+            }
 
-        await Db.SaveChangesAsync();
-        _showForm = false;
-        await LoadAsync();
+            await Db.SaveChangesAsync();
+            _showForm = false;
+            await LoadAsync();
+        }
+        finally
+        {
+            _saving = false;
+        }
     }
 
     private void AskDelete(ProviderAccount p) => _deleteTarget = p;
@@ -247,10 +276,18 @@
     private async Task ConfirmDelete()
     {
         if (_deleteTarget is null) return;
-        Db.ProviderAccounts.Remove(_deleteTarget);
-        await Db.SaveChangesAsync();
-        _deleteTarget = null;
-        await LoadAsync();
+        _deleting = true;
+        try
+        {
+            Db.ProviderAccounts.Remove(_deleteTarget);
+            await Db.SaveChangesAsync();
+            _deleteTarget = null;
+            await LoadAsync();
+        }
+        finally
+        {
+            _deleting = false;
+        }
     }
 
     private void CancelForm() => _showForm = false;

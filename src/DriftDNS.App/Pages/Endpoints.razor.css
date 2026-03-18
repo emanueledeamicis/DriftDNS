@@ -1,0 +1,50 @@
+.zone-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px;
+    background-color: #f0f4ff;
+    border-left: 4px solid #0d6efd;
+    border-radius: 4px;
+}
+
+.zone-label {
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #0d6efd;
+    background-color: #dce8ff;
+    padding: 2px 7px;
+    border-radius: 3px;
+}
+
+.zone-name {
+    font-size: 1rem;
+    font-weight: 600;
+    color: #212529;
+}
+
+.zone-count {
+    font-size: 0.8rem;
+    color: #6c757d;
+    margin-left: auto;
+}
+
+.endpoint-table {
+    table-layout: fixed;
+    width: 100%;
+}
+
+.endpoint-table .col-hostname { width: 40%; }
+.endpoint-table .col-type     { width: 8%; }
+.endpoint-table .col-provider { width: 22%; }
+.endpoint-table .col-ttl      { width: 10%; }
+.endpoint-table .col-actions  { width: 20%; }
+
+.endpoint-table td,
+.endpoint-table th {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
