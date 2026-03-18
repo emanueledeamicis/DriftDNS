@@ -141,36 +141,54 @@
     </div>
 }
 
-<table class="table table-striped">
-    <thead>
-        <tr>
-            <th>Hostname</th>
-            <th>Zone</th>
-            <th>Type</th>
-            <th>Provider</th>
-            <th>TTL</th>
-            <th>Enabled</th>
-            <th></th>
-        </tr>
-    </thead>
-    <tbody>
-        @foreach (var ep in _endpoints)
-        {
-            <tr>
-                <td>@ep.Hostname</td>
-                <td>@ep.ZoneName</td>
-                <td>@ep.RecordType</td>
-                <td>@ep.ProviderAccount?.Name</td>
-                <td>@ep.TTL</td>
-                <td>@(ep.Enabled ? "Yes" : "No")</td>
-                <td>
-                    <button class="btn btn-sm btn-outline-secondary" @onclick="() => EditEndpoint(ep)">Edit</button>
-                    <button class="btn btn-sm btn-outline-danger ms-1" @onclick="() => AskDelete(ep)">Delete</button>
-                </td>
-            </tr>
-        }
-    </tbody>
-</table>
+@if (_endpoints.Count == 0)
+{
+    <p class="text-muted">No endpoints configured.</p>
+}
+else
+{
+    @foreach (var group in _endpoints.GroupBy(e => e.ZoneName).OrderBy(g => g.Key))
+    {
+        <div class="zone-header mt-4 mb-0">
+            <span class="zone-label">Domain</span>
+            <span class="zone-name">@group.Key</span>
+            <span class="zone-count">@group.Count() record@(group.Count() == 1 ? "" : "s")</span>
+        </div>
+        <table class="table table-striped endpoint-table mb-4">
+            <colgroup>
+                <col class="col-hostname" />
+                <col class="col-type" />
+                <col class="col-provider" />
+                <col class="col-ttl" />
+                <col class="col-actions" />
+            </colgroup>
+            <thead>
+                <tr>
+                    <th>Hostname</th>
+                    <th>Type</th>
+                    <th>Provider</th>
+                    <th>TTL</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var ep in group.OrderBy(e => e.Hostname))
+                {
+                    <tr>
+                        <td>@ep.Hostname</td>
+                        <td>@ep.RecordType</td>
+                        <td>@ep.ProviderAccount?.Name</td>
+                        <td>@ep.TTL</td>
+                        <td class="text-end">
+                            <button class="btn btn-sm btn-outline-secondary" @onclick="() => EditEndpoint(ep)">Edit</button>
+                            <button class="btn btn-sm btn-outline-danger ms-1" @onclick="() => AskDelete(ep)">Delete</button>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+}
 
 @code {
     private List<DnsEndpoint> _endpoints = [];
