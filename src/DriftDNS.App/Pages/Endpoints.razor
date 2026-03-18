@@ -14,7 +14,7 @@
 
 @if (!_showForm)
 {
-    <button class="btn btn-primary mb-3" @onclick="ShowAddForm">+ Add Endpoint</button>
+    <button class="btn btn-primary mb-3" @onclick="ShowAddForm"><i class="bi bi-plus-lg me-1"></i>Add Endpoint</button>
 }
 
 @if (_showNoProviderModal)
@@ -30,8 +30,8 @@
                     <p>You need at least one active provider account before adding a DNS endpoint.</p>
                 </div>
                 <div class="modal-footer">
-                    <button class="btn btn-secondary" @onclick="() => _showNoProviderModal = false">Cancel</button>
-                    <button class="btn btn-primary" @onclick="GoToProviders">Configure a Provider</button>
+                    <button class="btn btn-secondary" @onclick="() => _showNoProviderModal = false"><i class="bi bi-x-lg me-1"></i>Cancel</button>
+                    <button class="btn btn-primary" @onclick="GoToProviders"><i class="bi bi-gear me-1"></i>Configure a Provider</button>
                 </div>
             </div>
         </div>
@@ -51,8 +51,8 @@
                     <p class="text-danger mb-0">This action is irreversible.</p>
                 </div>
                 <div class="modal-footer">
-                    <button class="btn btn-secondary" @onclick="CancelDelete">Cancel</button>
-                    <button class="btn btn-danger" @onclick="ConfirmDelete">Delete</button>
+                    <button class="btn btn-secondary" @onclick="CancelDelete"><i class="bi bi-x-lg me-1"></i>Cancel</button>
+                    <button class="btn btn-danger" @onclick="ConfirmDelete"><i class="bi bi-trash me-1"></i>Delete</button>
                 </div>
             </div>
         </div>
@@ -134,8 +134,8 @@
                 <label>TTL (seconds)</label>
                 <input class="form-control" type="number" @bind="_form.TTL" />
             </div>
-<button class="btn btn-success" @onclick="SaveEndpoint" disabled="@(_zonesLoading || _hostnamesLoading)">Save</button>
-            <button class="btn btn-secondary ms-2" @onclick="CancelForm">Cancel</button>
+<button class="btn btn-success" @onclick="SaveEndpoint" disabled="@(_zonesLoading || _hostnamesLoading)"><i class="bi bi-check-lg me-1"></i>Save</button>
+            <button class="btn btn-secondary ms-2" @onclick="CancelForm"><i class="bi bi-x-lg me-1"></i>Cancel</button>
             @if (_error is not null) { <span class="text-danger ms-2">@_error</span> }
         </div>
     </div>
@@ -180,8 +180,8 @@ else
                         <td>@ep.ProviderAccount?.Name</td>
                         <td>@ep.TTL</td>
                         <td class="text-end">
-                            <button class="btn btn-sm btn-outline-secondary" @onclick="() => EditEndpoint(ep)">Edit</button>
-                            <button class="btn btn-sm btn-outline-danger ms-1" @onclick="() => AskDelete(ep)">Delete</button>
+                            <button class="btn btn-sm btn-outline-secondary" @onclick="() => EditEndpoint(ep)"><i class="bi bi-pencil me-1"></i>Edit</button>
+                            <button class="btn btn-sm btn-outline-danger ms-1" @onclick="() => AskDelete(ep)"><i class="bi bi-trash me-1"></i>Delete</button>
                         </td>
                     </tr>
                 }

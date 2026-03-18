@@ -24,8 +24,8 @@
                 <input class="form-control" type="number" min="1" max="8760" @bind="_logRetentionHours" />
                 <div class="form-text">Logs older than this are automatically deleted after each sync cycle.</div>
             </div>
-            <button class="btn btn-primary" @onclick="Save">Save</button>
-            <button class="btn btn-outline-danger ms-2" @onclick="PurgeNow">Purge now</button>
+            <button class="btn btn-primary" @onclick="Save"><i class="bi bi-floppy me-1"></i>Save</button>
+            <button class="btn btn-outline-danger ms-2" @onclick="PurgeNow"><i class="bi bi-trash me-1"></i>Purge now</button>
             @if (_saved) { <span class="ms-3 text-success">Saved.</span> }
             @if (_purged) { <span class="ms-3 text-success">Logs purged.</span> }
             @if (_error is not null) { <span class="ms-3 text-danger">@_error</span> }
