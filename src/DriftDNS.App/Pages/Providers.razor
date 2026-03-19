@@ -105,7 +105,7 @@
                         @(_testing.Contains(p.Id) ? "Testing…" : "Test")
                     </button>
                     <button class="btn btn-sm btn-outline-secondary ms-1" @onclick="() => EditProvider(p)"><i class="bi bi-pencil me-1"></i>Edit</button>
-                    <button class="btn btn-sm btn-outline-danger ms-1" @onclick="() => AskDelete(p)"><i class="bi bi-trash me-1"></i>Delete</button>
+                    <button class="btn btn-sm btn-outline-danger ms-1" @onclick="() => AskDelete(p)" ><i class="bi bi-trash me-1"></i>Delete</button>
                     @if (_testResults.TryGetValue(p.Id, out var result))
                     {
                         <span class="ms-2 @(result.Success ? "text-success" : "text-danger")">
@@ -128,6 +128,13 @@
                 </div>
                 <div class="modal-body">
                     <p>Are you sure you want to delete <strong>@_deleteTarget.Name</strong>?</p>
+                    @if (_deleteEndpointCount > 0)
+                    {
+                        <div class="alert alert-danger py-2 mb-2">
+                            <i class="bi bi-exclamation-triangle-fill me-1"></i>
+                            This will also permanently delete <strong>@_deleteEndpointCount endpoint@(_deleteEndpointCount == 1 ? "" : "s")</strong> associated with this provider.
+                        </div>
+                    }
                     <p class="text-danger mb-0">This action is irreversible.</p>
                 </div>
                 <div class="modal-footer">
@@ -158,6 +165,7 @@
     private bool _isEnabled = true;
     private string? _error;
     private ProviderAccount? _deleteTarget;
+    private int _deleteEndpointCount;
     private HashSet<Guid> _testing = [];
     private Dictionary<Guid, (bool Success, string Message)> _testResults = [];
     private bool _saving;
@@ -270,7 +278,11 @@
         }
     }
 
-    private void AskDelete(ProviderAccount p) => _deleteTarget = p;
+    private async Task AskDelete(ProviderAccount p)
+    {
+        _deleteTarget = p;
+        _deleteEndpointCount = await Db.DnsEndpoints.CountAsync(e => e.ProviderAccountId == p.Id);
+    }
     private void CancelDelete() => _deleteTarget = null;
 
     private async Task ConfirmDelete()
