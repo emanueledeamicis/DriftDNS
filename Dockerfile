@@ -18,12 +18,17 @@ RUN dotnet publish src/DriftDNS.App/DriftDNS.App.csproj -c Release -o /app/publi
 FROM mcr.microsoft.com/dotnet/aspnet:9.0 AS runtime
 WORKDIR /app
 
-RUN mkdir -p /app/data
+RUN mkdir -p /app/data && \
+    adduser --disabled-password --gecos '' appuser && \
+    chown -R appuser /app
 
 COPY --from=build /app/publish .
+RUN chown -R appuser /app
 
 ENV ASPNETCORE_URLS=http://+:8080
 ENV DatabasePath=/app/data/app.db
+
+USER appuser
 
 EXPOSE 8080
 
