@@ -34,7 +34,7 @@ public class DnsSyncService : IDnsSyncService
         {
             _logger.LogError("DNS sync aborted: could not resolve public IP");
             var endpointIds = await _db.DnsEndpoints
-                .Where(e => e.Enabled)
+                .Where(e => e.Enabled && e.ProviderAccount!.IsEnabled)
                 .Select(e => e.Id)
                 .ToListAsync(cancellationToken);
             foreach (var id in endpointIds)
@@ -43,7 +43,7 @@ public class DnsSyncService : IDnsSyncService
         }
 
         var endpoints = await _db.DnsEndpoints
-            .Where(e => e.Enabled)
+            .Where(e => e.Enabled && e.ProviderAccount!.IsEnabled)
             .Include(e => e.ProviderAccount)
             .Include(e => e.SyncState)
             .ToListAsync(cancellationToken);
@@ -78,7 +78,7 @@ public class DnsSyncService : IDnsSyncService
         }
 
         var endpoint = await _db.DnsEndpoints
-            .Where(e => e.Id == endpointId && e.Enabled)
+            .Where(e => e.Id == endpointId && e.Enabled && e.ProviderAccount!.IsEnabled)
             .Include(e => e.ProviderAccount)
             .Include(e => e.SyncState)
             .FirstOrDefaultAsync(cancellationToken);

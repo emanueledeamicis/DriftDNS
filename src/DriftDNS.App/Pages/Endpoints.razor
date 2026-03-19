@@ -188,13 +188,20 @@ else
             <tbody>
                 @foreach (var ep in group.OrderBy(e => e.Hostname))
                 {
-                    <tr>
+                    <tr class="@(!ep.Enabled ? "table-secondary text-muted" : "")">
                         <td>@ep.Hostname</td>
                         <td>@ep.RecordType</td>
                         <td>@ep.ProviderAccount?.Name</td>
                         <td>@ep.TTL</td>
                         <td class="text-end">
                             <button class="btn btn-sm btn-outline-secondary" @onclick="() => EditEndpoint(ep)"><i class="bi bi-pencil me-1"></i>Edit</button>
+                            <button class="btn btn-sm @(ep.Enabled ? "btn-outline-warning" : "btn-outline-success") ms-1" @onclick="() => ToggleEndpoint(ep)" disabled="@_toggling.Contains(ep.Id)" title="@(ep.Enabled ? "Disable" : "Enable")">
+                                @if (_toggling.Contains(ep.Id)) {
+                                    <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                                } else {
+                                    <i class="bi @(ep.Enabled ? "bi-pause-circle" : "bi-play-circle")"></i>
+                                }
+                            </button>
                             <button class="btn btn-sm btn-outline-danger ms-1" @onclick="() => AskDelete(ep)"><i class="bi bi-trash me-1"></i>Delete</button>
                         </td>
                     </tr>
@@ -221,6 +228,7 @@ else
     private string? _hostnamesError;
     private bool _saving;
     private bool _deleting;
+    private HashSet<Guid> _toggling = [];
 
     protected override async Task OnInitializedAsync() => await LoadAsync();
 
@@ -442,4 +450,23 @@ else
     }
 
     private void CancelForm() => _showForm = false;
+
+    private async Task ToggleEndpoint(DnsEndpoint ep)
+    {
+        _toggling.Add(ep.Id);
+        try
+        {
+            var entity = await Db.DnsEndpoints.FindAsync(ep.Id);
+            if (entity is not null)
+            {
+                entity.Enabled = !entity.Enabled;
+                await Db.SaveChangesAsync();
+                ep.Enabled = entity.Enabled;
+            }
+        }
+        finally
+        {
+            _toggling.Remove(ep.Id);
+        }
+    }
 }
