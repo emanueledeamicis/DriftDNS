@@ -48,18 +48,18 @@
             {
                 <div class="mb-2">
                     <label>Access Key</label>
-                    <input class="form-control" @bind="_accessKey" />
+                    <input class="form-control" @bind="_accessKey" placeholder="@(_editing ? "••••••••  (leave blank to keep current)" : "")" />
                 </div>
                 <div class="mb-2">
                     <label>Secret Key</label>
-                    <input class="form-control" type="password" @bind="_secretKey" />
+                    <input class="form-control" type="password" @bind="_secretKey" placeholder="@(_editing ? "••••••••  (leave blank to keep current)" : "")" />
                 </div>
             }
             else if (_providerType == "Cloudflare")
             {
                 <div class="mb-2">
                     <label>API Token</label>
-                    <input class="form-control" type="password" @bind="_accessKey" />
+                    <input class="form-control" type="password" @bind="_accessKey" placeholder="@(_editing ? "••••••••  (leave blank to keep current)" : "")" />
                     <div class="form-text">Create a token with <strong>Zone:Read</strong> and <strong>DNS:Edit</strong> permissions.</div>
                 </div>
             }
