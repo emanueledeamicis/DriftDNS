@@ -49,9 +49,6 @@ efbundle
 **/appsettings.*.json
 !**/appsettings.Development.json
 
-## Docker
-.dockerignore
-
 ## OS
 .DS_Store
 Thumbs.db
