@@ -1,14 +1,12 @@
 services:
   driftdns:
-    image: emanueledeamicis/driftdns:latest
+    image: catokx/driftdns:latest
     container_name: driftdns
     restart: unless-stopped
     ports:
       - "8080:8080"
     volumes:
       - driftdns-data:/app/data
-    environment:
-      - DatabasePath=/app/data/app.db
 
 volumes:
   driftdns-data:

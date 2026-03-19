@@ -82,7 +82,6 @@
         <tr>
             <th>Name</th>
             <th>Type</th>
-            <th>Enabled</th>
             <th>Created</th>
             <th></th>
         </tr>
@@ -90,13 +89,12 @@
     <tbody>
         @foreach (var p in _accounts)
         {
-            <tr>
+            <tr class="@(!p.IsEnabled ? "table-secondary text-muted" : "")">
                 <td>@p.Name</td>
                 <td>@p.ProviderType</td>
-                <td>@(p.IsEnabled ? "Yes" : "No")</td>
                 <td>@p.CreatedAt.ToString("g")</td>
                 <td>
-                    <button class="btn btn-sm btn-outline-info" @onclick="() => TestProvider(p)" disabled="@_testing.Contains(p.Id)">
+                    <button class="btn btn-sm btn-outline-info" @onclick="() => TestProvider(p)" disabled="@(_testing.Contains(p.Id) || !p.IsEnabled)">
                         @if (_testing.Contains(p.Id)) {
                             <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
                         } else {
@@ -105,6 +103,13 @@
                         @(_testing.Contains(p.Id) ? "Testing…" : "Test")
                     </button>
                     <button class="btn btn-sm btn-outline-secondary ms-1" @onclick="() => EditProvider(p)"><i class="bi bi-pencil me-1"></i>Edit</button>
+                    <button class="btn btn-sm @(p.IsEnabled ? "btn-outline-warning" : "btn-outline-success") ms-1" @onclick="() => ToggleProvider(p)" disabled="@_toggling.Contains(p.Id)" title="@(p.IsEnabled ? "Disable" : "Enable")">
+                        @if (_toggling.Contains(p.Id)) {
+                            <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                        } else {
+                            <i class="bi @(p.IsEnabled ? "bi-pause-circle" : "bi-play-circle")"></i>
+                        }
+                    </button>
                     <button class="btn btn-sm btn-outline-danger ms-1" @onclick="() => AskDelete(p)"><i class="bi bi-trash me-1"></i>Delete</button>
                     @if (_testResults.TryGetValue(p.Id, out var result))
                     {
@@ -128,6 +133,13 @@
                 </div>
                 <div class="modal-body">
                     <p>Are you sure you want to delete <strong>@_deleteTarget.Name</strong>?</p>
+                    @if (_deleteEndpointCount > 0)
+                    {
+                        <div class="alert alert-danger py-2 mb-2">
+                            <i class="bi bi-exclamation-triangle-fill me-1"></i>
+                            This will also permanently delete <strong>@_deleteEndpointCount endpoint@(_deleteEndpointCount == 1 ? "" : "s")</strong> associated with this provider.
+                        </div>
+                    }
                     <p class="text-danger mb-0">This action is irreversible.</p>
                 </div>
                 <div class="modal-footer">
@@ -158,10 +170,12 @@
     private bool _isEnabled = true;
     private string? _error;
     private ProviderAccount? _deleteTarget;
+    private int _deleteEndpointCount;
     private HashSet<Guid> _testing = [];
     private Dictionary<Guid, (bool Success, string Message)> _testResults = [];
     private bool _saving;
     private bool _deleting;
+    private HashSet<Guid> _toggling = [];
 
     protected override async Task OnInitializedAsync() => await LoadAsync();
 
@@ -270,7 +284,11 @@
         }
     }
 
-    private void AskDelete(ProviderAccount p) => _deleteTarget = p;
+    private async Task AskDelete(ProviderAccount p)
+    {
+        _deleteTarget = p;
+        _deleteEndpointCount = await Db.DnsEndpoints.CountAsync(e => e.ProviderAccountId == p.Id);
+    }
     private void CancelDelete() => _deleteTarget = null;
 
     private async Task ConfirmDelete()
@@ -291,6 +309,25 @@
     }
 
     private void CancelForm() => _showForm = false;
+
+    private async Task ToggleProvider(ProviderAccount p)
+    {
+        _toggling.Add(p.Id);
+        try
+        {
+            var entity = await Db.ProviderAccounts.FindAsync(p.Id);
+            if (entity is not null)
+            {
+                entity.IsEnabled = !entity.IsEnabled;
+                await Db.SaveChangesAsync();
+                p.IsEnabled = entity.IsEnabled;
+            }
+        }
+        finally
+        {
+            _toggling.Remove(p.Id);
+        }
+    }
 
     private async Task TestProvider(ProviderAccount account)
     {

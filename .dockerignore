@@ -1,0 +1,27 @@
+# Build outputs
+**/bin/
+**/obj/
+
+# Git
+.git/
+.gitignore
+
+# Docs and repo files
+docs/
+README.md
+LICENSE
+*.md
+
+# IDE and OS
+.vs/
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Docker
+docker-compose.yml
+.dockerignore
+
+# CI
+.github/

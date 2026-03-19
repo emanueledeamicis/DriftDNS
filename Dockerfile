@@ -18,9 +18,13 @@ RUN dotnet publish src/DriftDNS.App/DriftDNS.App.csproj -c Release -o /app/publi
 FROM mcr.microsoft.com/dotnet/aspnet:9.0 AS runtime
 WORKDIR /app
 
-RUN mkdir -p /app/data
+RUN mkdir -p /app/data && \
+    adduser --disabled-password --gecos '' appuser && \
+    chown -R appuser /app
 
 COPY --from=build /app/publish .
+COPY docker-entrypoint.sh /docker-entrypoint.sh
+RUN chown -R appuser /app && chmod +x /docker-entrypoint.sh
 
 ENV ASPNETCORE_URLS=http://+:8080
 ENV DatabasePath=/app/data/app.db
@@ -29,4 +33,4 @@ EXPOSE 8080
 
 VOLUME /app/data
 
-ENTRYPOINT ["dotnet", "DriftDNS.App.dll"]
+ENTRYPOINT ["/docker-entrypoint.sh"]
