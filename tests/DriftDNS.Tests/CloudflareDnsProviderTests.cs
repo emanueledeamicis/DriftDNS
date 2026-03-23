@@ -1,5 +1,5 @@
 using DriftDNS.Core.Models;
-using DriftDNS.Providers.Cloudflare;
+using DriftDNS.Infrastructure.Providers;
 using DriftDNS.Tests.Helpers;
 using FluentAssertions;
 using Microsoft.Extensions.Logging;
@@ -102,18 +102,17 @@ public class CloudflareDnsProviderTests
     // --- UpsertRecord ---
 
     [Test]
-    public async Task UpsertRecord_CreatesRecord_WhenRecordDoesNotExist()
+    public async Task UpsertRecord_Throws_WhenRecordDoesNotExist()
     {
         var endpoint = BuildEndpoint();
 
         _handler.EnqueueJson(CloudflareSuccess(new[] { new { id = "zone-1", name = "example.com" } })); // resolve zone
-        _handler.EnqueueJson(CloudflareSuccess(new object[] { }));                                       // find record → empty
-        _handler.EnqueueJson(CloudflareSuccess(new { id = "rec-new" }));                                 // POST create
+        _handler.EnqueueJson(CloudflareSuccess(new object[] { }));                                       // find record → not found
 
         var act = async () => await _provider.UpsertRecordAsync(_account, endpoint, "1.2.3.4");
 
-        await act.Should().NotThrowAsync();
-        _handler.CallCount.Should().Be(3);
+        await act.Should().ThrowAsync<InvalidOperationException>().WithMessage("*not found*");
+        _handler.CallCount.Should().Be(2);
     }
 
     [Test]
@@ -121,9 +120,9 @@ public class CloudflareDnsProviderTests
     {
         var endpoint = BuildEndpoint();
 
-        _handler.EnqueueJson(CloudflareSuccess(new[] { new { id = "zone-1", name = "example.com" } }));       // resolve zone
+        _handler.EnqueueJson(CloudflareSuccess(new[] { new { id = "zone-1", name = "example.com" } }));            // resolve zone
         _handler.EnqueueJson(CloudflareSuccess(new[] { new { id = "rec-existing", name = "test.example.com" } })); // find record → found
-        _handler.EnqueueJson(CloudflareSuccess(new { id = "rec-existing" }));                                  // PUT update
+        _handler.EnqueueJson(CloudflareSuccess(new { id = "rec-existing" }));                                       // PUT update
 
         var act = async () => await _provider.UpsertRecordAsync(_account, endpoint, "1.2.3.4");
 
@@ -141,6 +140,34 @@ public class CloudflareDnsProviderTests
         var act = async () => await _provider.UpsertRecordAsync(_account, endpoint, "1.2.3.4");
 
         await act.Should().ThrowAsync<InvalidOperationException>().WithMessage("*example.com*");
+    }
+
+    // --- VerifyRecord ---
+
+    [Test]
+    public async Task VerifyRecord_ReturnsTrue_WhenRecordExists()
+    {
+        var endpoint = BuildEndpoint();
+
+        _handler.EnqueueJson(CloudflareSuccess(new[] { new { id = "zone-1", name = "example.com" } }));            // resolve zone
+        _handler.EnqueueJson(CloudflareSuccess(new[] { new { id = "rec-1", name = "test.example.com" } }));        // find record → found
+
+        var result = await _provider.VerifyRecordAsync(_account, endpoint);
+
+        result.Should().BeTrue();
+    }
+
+    [Test]
+    public async Task VerifyRecord_ReturnsFalse_WhenRecordDoesNotExist()
+    {
+        var endpoint = BuildEndpoint();
+
+        _handler.EnqueueJson(CloudflareSuccess(new[] { new { id = "zone-1", name = "example.com" } })); // resolve zone
+        _handler.EnqueueJson(CloudflareSuccess(new object[] { }));                                       // find record → not found
+
+        var result = await _provider.VerifyRecordAsync(_account, endpoint);
+
+        result.Should().BeFalse();
     }
 
     // --- helpers ---

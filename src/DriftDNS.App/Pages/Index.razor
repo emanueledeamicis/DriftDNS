@@ -21,7 +21,7 @@
 }
 
 <div class="row mt-3">
-    <div class="col-md-3">
+    <div class="col-md-2">
         <div class="card">
             <div class="card-body">
                 <h5 class="card-title">Public IP</h5>
@@ -29,7 +29,7 @@
             </div>
         </div>
     </div>
-    <div class="col-md-3">
+    <div class="col-md-2">
         <div class="card">
             <div class="card-body">
                 <h5 class="card-title">Endpoints</h5>
@@ -37,11 +37,21 @@
             </div>
         </div>
     </div>
-    <div class="col-md-3">
+    <div class="col-md-2">
         <div class="card">
             <div class="card-body">
                 <h5 class="card-title">Providers</h5>
                 <p class="card-text fs-4">@_providerCount</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card @(_syncIssueCount > 0 ? "border-danger" : "")">
+            <div class="card-body">
+                <h5 class="card-title @(_syncIssueCount > 0 ? "text-danger" : "")">
+                    <i class="bi @(_syncIssueCount > 0 ? "bi-exclamation-triangle-fill" : "bi-check-circle-fill") me-1"></i>Sync Issues
+                </h5>
+                <p class="card-text fs-4 @(_syncIssueCount > 0 ? "text-danger" : "text-success")">@_syncIssueCount</p>
             </div>
         </div>
     </div>
@@ -74,6 +84,7 @@
     private string? _publicIp;
     private int _endpointCount;
     private int _providerCount;
+    private int _syncIssueCount;
     private DateTime? _lastSync;
     private bool _syncing;
     private string? _syncMessage;
@@ -88,6 +99,7 @@
         _publicIp = await IpResolver.ResolveAsync();
         _endpointCount = await Db.DnsEndpoints.CountAsync();
         _providerCount = await Db.ProviderAccounts.CountAsync();
+        _syncIssueCount = await Db.SyncStates.CountAsync(s => s.LastError != null);
         _lastSync = await Db.SyncLogs
             .OrderByDescending(l => l.Timestamp)
             .Select(l => (DateTime?)l.Timestamp)

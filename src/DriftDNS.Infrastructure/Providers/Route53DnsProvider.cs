@@ -7,7 +7,7 @@ using DriftDNS.Core.Models;
 using Microsoft.Extensions.Logging;
 using System.Text.Json;
 
-namespace DriftDNS.Providers.Route53;
+namespace DriftDNS.Infrastructure.Providers;
 
 public class Route53DnsProvider : IDnsProvider
 {
@@ -23,7 +23,6 @@ public class Route53DnsProvider : IDnsProvider
     public async Task ValidateCredentialsAsync(ProviderAccount account, CancellationToken cancellationToken = default)
     {
         var client = CreateClient(account);
-        // List hosted zones as a lightweight credential check
         await client.ListHostedZonesByNameAsync(new ListHostedZonesByNameRequest { MaxItems = "1" }, cancellationToken);
     }
 
@@ -101,6 +100,12 @@ public class Route53DnsProvider : IDnsProvider
 
         var zoneId = await ResolveZoneIdAsync(client, endpoint.ZoneName, cancellationToken);
 
+        var exists = await RecordExistsAsync(client, zoneId, endpoint.Hostname, endpoint.RecordType, cancellationToken);
+        if (!exists)
+            throw new InvalidOperationException(
+                $"DNS record '{endpoint.Hostname}' ({endpoint.RecordType}) not found in Route53. " +
+                "Create it manually on the provider, then DriftDNS will keep it in sync.");
+
         var request = new ChangeResourceRecordSetsRequest
         {
             HostedZoneId = zoneId,
@@ -125,6 +130,29 @@ public class Route53DnsProvider : IDnsProvider
 
         _logger.LogInformation("Upserting Route53 record {Hostname} → {Ip}", endpoint.Hostname, ipAddress);
         await client.ChangeResourceRecordSetsAsync(request, cancellationToken);
+    }
+
+    public async Task<bool> VerifyRecordAsync(ProviderAccount account, DnsEndpoint endpoint, CancellationToken cancellationToken = default)
+    {
+        var client = CreateClient(account);
+        var zoneId = await ResolveZoneIdAsync(client, endpoint.ZoneName, cancellationToken);
+        return await RecordExistsAsync(client, zoneId, endpoint.Hostname, endpoint.RecordType, cancellationToken);
+    }
+
+    private static async Task<bool> RecordExistsAsync(IAmazonRoute53 client, string zoneId, string hostname, string recordType, CancellationToken cancellationToken)
+    {
+        var name = hostname.TrimEnd('.') + '.';
+        var response = await client.ListResourceRecordSetsAsync(new ListResourceRecordSetsRequest
+        {
+            HostedZoneId = zoneId,
+            StartRecordName = name,
+            StartRecordType = new RRType(recordType),
+            MaxItems = "1"
+        }, cancellationToken);
+
+        return response.ResourceRecordSets.Any(r =>
+            r.Name.TrimEnd('.').Equals(hostname.TrimEnd('.'), StringComparison.OrdinalIgnoreCase) &&
+            r.Type == new RRType(recordType));
     }
 
     private static async Task<string> ResolveZoneIdAsync(IAmazonRoute53 client, string zoneName, CancellationToken cancellationToken)

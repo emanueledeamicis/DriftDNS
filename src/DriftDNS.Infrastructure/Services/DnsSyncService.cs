@@ -94,16 +94,46 @@ public class DnsSyncService : IDnsSyncService
         state.LastKnownPublicIp = currentIp;
         state.LastCheckAt = DateTime.UtcNow;
 
+        var provider = _providers.FirstOrDefault(p =>
+            p.Name.Equals(endpoint.ProviderAccount?.ProviderType, StringComparison.OrdinalIgnoreCase));
+
         if (!forceUpdate && state.LastAppliedIp == currentIp)
         {
+            if (provider is not null)
+            {
+                try
+                {
+                    var exists = await provider.VerifyRecordAsync(endpoint.ProviderAccount!, endpoint, cancellationToken);
+                    if (exists)
+                    {
+                        _logger.LogDebug("No change for {Hostname}", endpoint.Hostname);
+                        state.LastError = null;
+                        await WriteLogAsync(endpoint.Id, SyncAction.NoChange, state.LastAppliedIp, currentIp, "IP unchanged");
+                        await UpsertStateAsync(state);
+                        return;
+                    }
+
+                    var msg = $"DNS record '{endpoint.Hostname}' ({endpoint.RecordType}) not found on provider. Create it manually, then DriftDNS will keep it in sync.";
+                    _logger.LogWarning(msg);
+                    state.LastError = msg;
+                    await WriteLogAsync(endpoint.Id, SyncAction.Failed, state.LastAppliedIp, currentIp, msg);
+                    await UpsertStateAsync(state);
+                    return;
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Could not verify record existence for {Hostname}, skipping", endpoint.Hostname);
+                    await WriteLogAsync(endpoint.Id, SyncAction.NoChange, state.LastAppliedIp, currentIp, "IP unchanged (verification skipped)");
+                    await UpsertStateAsync(state);
+                    return;
+                }
+            }
+
             _logger.LogDebug("No change for {Hostname}", endpoint.Hostname);
             await WriteLogAsync(endpoint.Id, SyncAction.NoChange, state.LastAppliedIp, currentIp, "IP unchanged");
             await UpsertStateAsync(state);
             return;
         }
-
-        var provider = _providers.FirstOrDefault(p =>
-            p.Name.Equals(endpoint.ProviderAccount?.ProviderType, StringComparison.OrdinalIgnoreCase));
 
         if (provider is null)
         {

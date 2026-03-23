@@ -6,7 +6,7 @@ using DriftDNS.Core.Interfaces;
 using DriftDNS.Core.Models;
 using Microsoft.Extensions.Logging;
 
-namespace DriftDNS.Providers.Cloudflare;
+namespace DriftDNS.Infrastructure.Providers;
 
 public class CloudflareDnsProvider : IDnsProvider
 {
@@ -81,27 +81,31 @@ public class CloudflareDnsProvider : IDnsProvider
 
         var existing = await FindRecordAsync(client, zoneId, endpoint.Hostname, endpoint.RecordType, cancellationToken);
 
+        if (existing is null)
+            throw new InvalidOperationException(
+                $"DNS record '{endpoint.Hostname}' ({endpoint.RecordType}) not found in Cloudflare. " +
+                "Create it manually on the provider, then DriftDNS will keep it in sync.");
+
         var body = new
         {
             type = endpoint.RecordType,
             name = endpoint.Hostname,
             content = ipAddress,
             ttl = endpoint.TTL,
-            proxied = false
+            proxied = existing.Proxied
         };
 
-        if (existing is not null)
-        {
-            _logger.LogInformation("Updating Cloudflare record {Hostname} → {Ip}", endpoint.Hostname, ipAddress);
-            var response = await client.PutAsJsonAsync($"{BaseUrl}/zones/{zoneId}/dns_records/{existing.Id}", body, cancellationToken);
-            response.EnsureSuccessStatusCode();
-        }
-        else
-        {
-            _logger.LogInformation("Creating Cloudflare record {Hostname} → {Ip}", endpoint.Hostname, ipAddress);
-            var response = await client.PostAsJsonAsync($"{BaseUrl}/zones/{zoneId}/dns_records", body, cancellationToken);
-            response.EnsureSuccessStatusCode();
-        }
+        _logger.LogInformation("Updating Cloudflare record {Hostname} → {Ip}", endpoint.Hostname, ipAddress);
+        var response = await client.PutAsJsonAsync($"{BaseUrl}/zones/{zoneId}/dns_records/{existing.Id}", body, cancellationToken);
+        response.EnsureSuccessStatusCode();
+    }
+
+    public async Task<bool> VerifyRecordAsync(ProviderAccount account, DnsEndpoint endpoint, CancellationToken cancellationToken = default)
+    {
+        var client = CreateClient(account);
+        var zoneId = await ResolveZoneIdAsync(client, endpoint.ZoneName, cancellationToken);
+        var record = await FindRecordAsync(client, zoneId, endpoint.Hostname, endpoint.RecordType, cancellationToken);
+        return record is not null;
     }
 
     private async Task<string> ResolveZoneIdAsync(HttpClient client, string zoneName, CancellationToken cancellationToken)
@@ -179,5 +183,6 @@ public class CloudflareDnsProvider : IDnsProvider
     {
         [JsonPropertyName("id")] public string Id { get; set; } = string.Empty;
         [JsonPropertyName("name")] public string Name { get; set; } = string.Empty;
+        [JsonPropertyName("proxied")] public bool Proxied { get; set; }
     }
 }

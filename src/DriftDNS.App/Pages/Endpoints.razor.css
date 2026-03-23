@@ -36,11 +36,12 @@
     width: 100%;
 }
 
-.endpoint-table .col-hostname { width: 40%; }
-.endpoint-table .col-type     { width: 8%; }
-.endpoint-table .col-provider { width: 22%; }
-.endpoint-table .col-ttl      { width: 10%; }
-.endpoint-table .col-actions  { width: 20%; }
+.endpoint-table .col-hostname { width: 32%; }
+.endpoint-table .col-type     { width: 7%; }
+.endpoint-table .col-provider { width: 19%; }
+.endpoint-table .col-ttl      { width: 8%; }
+.endpoint-table .col-status   { width: 10%; }
+.endpoint-table .col-actions  { width: 24%; }
 
 .endpoint-table td,
 .endpoint-table th {
