@@ -3,6 +3,7 @@
     <Project Path="src/DriftDNS.App/DriftDNS.App.csproj" />
     <Project Path="src/DriftDNS.Core/DriftDNS.Core.csproj" />
     <Project Path="src/DriftDNS.Infrastructure/DriftDNS.Infrastructure.csproj" />
+    <Project Path="src/DriftDNS.Providers.Cloudflare/DriftDNS.Providers.Cloudflare.csproj" />
     <Project Path="src/DriftDNS.Providers.Route53/DriftDNS.Providers.Route53.csproj" />
   </Folder>
   <Folder Name="/tests/">

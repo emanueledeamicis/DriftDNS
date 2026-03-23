@@ -17,4 +17,9 @@ public interface IDnsProvider
         DnsEndpoint endpoint,
         string ipAddress,
         CancellationToken cancellationToken = default);
+
+    Task<bool> VerifyRecordAsync(
+        ProviderAccount account,
+        DnsEndpoint endpoint,
+        CancellationToken cancellationToken = default);
 }

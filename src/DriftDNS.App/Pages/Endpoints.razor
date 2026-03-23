@@ -174,6 +174,7 @@ else
                 <col class="col-type" />
                 <col class="col-provider" />
                 <col class="col-ttl" />
+                <col class="col-status" />
                 <col class="col-actions" />
             </colgroup>
             <thead>
@@ -182,6 +183,7 @@ else
                     <th>Type</th>
                     <th>Provider</th>
                     <th>TTL</th>
+                    <th>Last Sync</th>
                     <th></th>
                 </tr>
             </thead>
@@ -193,6 +195,7 @@ else
                         <td>@ep.RecordType</td>
                         <td>@ep.ProviderAccount?.Name</td>
                         <td>@ep.TTL</td>
+                        <td>@SyncStatusBadge(ep)</td>
                         <td class="text-end">
                             <button class="btn btn-sm btn-outline-secondary" @onclick="() => EditEndpoint(ep)"><i class="bi bi-pencil me-1"></i>Edit</button>
                             <button class="btn btn-sm @(ep.Enabled ? "btn-outline-warning" : "btn-outline-success") ms-1" @onclick="() => ToggleEndpoint(ep)" disabled="@_toggling.Contains(ep.Id)" title="@(ep.Enabled ? "Disable" : "Enable")">
@@ -234,7 +237,7 @@ else
 
     private async Task LoadAsync()
     {
-        _endpoints = await Db.DnsEndpoints.Include(e => e.ProviderAccount).ToListAsync();
+        _endpoints = await Db.DnsEndpoints.Include(e => e.ProviderAccount).Include(e => e.SyncState).ToListAsync();
         _providers = await Db.ProviderAccounts.Where(p => p.IsEnabled).ToListAsync();
     }
 
@@ -450,6 +453,26 @@ else
     }
 
     private void CancelForm() => _showForm = false;
+
+    private static MarkupString SyncStatusBadge(DnsEndpoint ep)
+    {
+        if (!ep.Enabled)
+            return new MarkupString("<span class=\"badge bg-secondary\">Disabled</span>");
+
+        var state = ep.SyncState;
+        if (state is null)
+            return new MarkupString("<span class=\"badge bg-secondary\">Never</span>");
+
+        if (state.LastError is not null)
+        {
+            var escaped = System.Web.HttpUtility.HtmlAttributeEncode(state.LastError);
+            return new MarkupString(
+                $"<span class=\"badge bg-danger\" title=\"{escaped}\" style=\"cursor:default\"><i class=\"bi bi-exclamation-triangle me-1\"></i>Error</span>");
+        }
+
+        return new MarkupString(
+            $"<span class=\"badge bg-success\"><i class=\"bi bi-check-lg me-1\"></i>OK</span>");
+    }
 
     private async Task ToggleEndpoint(DnsEndpoint ep)
     {
