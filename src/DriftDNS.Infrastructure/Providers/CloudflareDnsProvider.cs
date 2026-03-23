@@ -6,7 +6,7 @@ using DriftDNS.Core.Interfaces;
 using DriftDNS.Core.Models;
 using Microsoft.Extensions.Logging;
 
-namespace DriftDNS.Providers.Cloudflare;
+namespace DriftDNS.Infrastructure.Providers;
 
 public class CloudflareDnsProvider : IDnsProvider
 {

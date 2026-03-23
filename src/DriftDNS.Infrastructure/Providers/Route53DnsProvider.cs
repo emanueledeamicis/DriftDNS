@@ -7,7 +7,7 @@ using DriftDNS.Core.Models;
 using Microsoft.Extensions.Logging;
 using System.Text.Json;
 
-namespace DriftDNS.Providers.Route53;
+namespace DriftDNS.Infrastructure.Providers;
 
 public class Route53DnsProvider : IDnsProvider
 {
@@ -23,7 +23,6 @@ public class Route53DnsProvider : IDnsProvider
     public async Task ValidateCredentialsAsync(ProviderAccount account, CancellationToken cancellationToken = default)
     {
         var client = CreateClient(account);
-        // List hosted zones as a lightweight credential check
         await client.ListHostedZonesByNameAsync(new ListHostedZonesByNameRequest { MaxItems = "1" }, cancellationToken);
     }
 

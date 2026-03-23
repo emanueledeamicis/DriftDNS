@@ -2,8 +2,7 @@ using DriftDNS.App.Workers;
 using DriftDNS.Core.Interfaces;
 using DriftDNS.Infrastructure.Data;
 using DriftDNS.Infrastructure.Services;
-using DriftDNS.Providers.Cloudflare;
-using DriftDNS.Providers.Route53;
+using DriftDNS.Infrastructure.Providers;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);

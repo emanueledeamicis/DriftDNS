@@ -1,5 +1,5 @@
 using DriftDNS.Core.Models;
-using DriftDNS.Providers.Cloudflare;
+using DriftDNS.Infrastructure.Providers;
 using DriftDNS.Tests.Helpers;
 using FluentAssertions;
 using Microsoft.Extensions.Logging;
