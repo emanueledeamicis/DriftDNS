@@ -4,8 +4,10 @@
 @using Microsoft.EntityFrameworkCore
 @using System.Text.Json
 @using DriftDNS.Core.Interfaces
+@using DriftDNS.Infrastructure.Security
 @inject DriftDnsDbContext Db
 @inject IEnumerable<IDnsProvider> DnsProviders
+@inject ICredentialProtector CredentialProtector
 
 <PageTitle>Providers – DriftDNS</PageTitle>
 
@@ -247,11 +249,7 @@
         _saving = true;
         try
         {
-            var credentials = _providerType == "Cloudflare"
-                ? JsonSerializer.Serialize(new { ApiToken = _accessKey })
-                : JsonSerializer.Serialize(new { AccessKey = _accessKey, SecretKey = _secretKey });
-
-            if (_editing)
+                if (_editing)
             {
                 var existing = await Db.ProviderAccounts.FindAsync(_editId);
                 if (existing is not null)
@@ -260,16 +258,24 @@
                     existing.ProviderType = _providerType;
                     existing.IsEnabled = _isEnabled;
                     if (!string.IsNullOrWhiteSpace(_accessKey))
-                        existing.EncryptedCredentials = credentials;
+                    {
+                        var json = _providerType == "Cloudflare"
+                            ? JsonSerializer.Serialize(new { ApiToken = _accessKey })
+                            : JsonSerializer.Serialize(new { AccessKey = _accessKey, SecretKey = _secretKey });
+                        existing.EncryptedCredentials = CredentialProtector.Protect(json);
+                    }
                 }
             }
             else
             {
+                var json = _providerType == "Cloudflare"
+                    ? JsonSerializer.Serialize(new { ApiToken = _accessKey })
+                    : JsonSerializer.Serialize(new { AccessKey = _accessKey, SecretKey = _secretKey });
                 Db.ProviderAccounts.Add(new ProviderAccount
                 {
                     Name = _name,
                     ProviderType = _providerType,
-                    EncryptedCredentials = credentials,
+                    EncryptedCredentials = CredentialProtector.Protect(json),
                     IsEnabled = _isEnabled,
                 });
             }

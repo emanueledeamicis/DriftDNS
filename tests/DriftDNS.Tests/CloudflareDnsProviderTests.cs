@@ -1,5 +1,6 @@
 using DriftDNS.Core.Models;
 using DriftDNS.Infrastructure.Providers;
+using DriftDNS.Infrastructure.Security;
 using DriftDNS.Tests.Helpers;
 using FluentAssertions;
 using Microsoft.Extensions.Logging;
@@ -23,7 +24,7 @@ public class CloudflareDnsProviderTests
         var factory = new Mock<IHttpClientFactory>();
         factory.Setup(f => f.CreateClient(It.IsAny<string>())).Returns(new HttpClient(_handler));
 
-        _provider = new CloudflareDnsProvider(factory.Object, Mock.Of<ILogger<CloudflareDnsProvider>>());
+        _provider = new CloudflareDnsProvider(factory.Object, Mock.Of<ILogger<CloudflareDnsProvider>>(), new PassthroughCredentialProtector());
         _account = new ProviderAccount
         {
             Name = "Test",
@@ -187,4 +188,10 @@ public class CloudflareDnsProviderTests
         result,
         result_info = new { total_pages = 1 }
     };
+
+    private sealed class PassthroughCredentialProtector : ICredentialProtector
+    {
+        public string Protect(string plaintext) => plaintext;
+        public string Unprotect(string value) => value;
+    }
 }

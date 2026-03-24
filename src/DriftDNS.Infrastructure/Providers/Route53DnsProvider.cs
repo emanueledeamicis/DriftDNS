@@ -4,6 +4,7 @@ using Amazon.Route53.Model;
 using Amazon.Runtime;
 using DriftDNS.Core.Interfaces;
 using DriftDNS.Core.Models;
+using DriftDNS.Infrastructure.Security;
 using Microsoft.Extensions.Logging;
 using System.Text.Json;
 
@@ -12,12 +13,14 @@ namespace DriftDNS.Infrastructure.Providers;
 public class Route53DnsProvider : IDnsProvider
 {
     private readonly ILogger<Route53DnsProvider> _logger;
+    private readonly ICredentialProtector _credentialProtector;
 
     public string Name => "Route53";
 
-    public Route53DnsProvider(ILogger<Route53DnsProvider> logger)
+    public Route53DnsProvider(ILogger<Route53DnsProvider> logger, ICredentialProtector credentialProtector)
     {
         _logger = logger;
+        _credentialProtector = credentialProtector;
     }
 
     public async Task ValidateCredentialsAsync(ProviderAccount account, CancellationToken cancellationToken = default)
@@ -171,9 +174,9 @@ public class Route53DnsProvider : IDnsProvider
         return zone.Id;
     }
 
-    private static AmazonRoute53Client CreateClient(ProviderAccount account)
+    private AmazonRoute53Client CreateClient(ProviderAccount account)
     {
-        var creds = ParseCredentials(account.EncryptedCredentials);
+        var creds = ParseCredentials(_credentialProtector.Unprotect(account.EncryptedCredentials));
         var credentials = new BasicAWSCredentials(creds.AccessKey, creds.SecretKey);
         return new AmazonRoute53Client(credentials, RegionEndpoint.USEast1);
     }
