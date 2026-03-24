@@ -4,6 +4,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using DriftDNS.Core.Interfaces;
 using DriftDNS.Core.Models;
+using DriftDNS.Infrastructure.Security;
 using Microsoft.Extensions.Logging;
 
 namespace DriftDNS.Infrastructure.Providers;
@@ -12,15 +13,17 @@ public class CloudflareDnsProvider : IDnsProvider
 {
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly ILogger<CloudflareDnsProvider> _logger;
+    private readonly ICredentialProtector _credentialProtector;
 
     private const string BaseUrl = "https://api.cloudflare.com/client/v4";
 
     public string Name => "Cloudflare";
 
-    public CloudflareDnsProvider(IHttpClientFactory httpClientFactory, ILogger<CloudflareDnsProvider> logger)
+    public CloudflareDnsProvider(IHttpClientFactory httpClientFactory, ILogger<CloudflareDnsProvider> logger, ICredentialProtector credentialProtector)
     {
         _httpClientFactory = httpClientFactory;
         _logger = logger;
+        _credentialProtector = credentialProtector;
     }
 
     public async Task ValidateCredentialsAsync(ProviderAccount account, CancellationToken cancellationToken = default)
@@ -130,7 +133,7 @@ public class CloudflareDnsProvider : IDnsProvider
 
     private HttpClient CreateClient(ProviderAccount account)
     {
-        var apiToken = ParseCredentials(account.EncryptedCredentials);
+        var apiToken = ParseCredentials(_credentialProtector.Unprotect(account.EncryptedCredentials));
         var client = _httpClientFactory.CreateClient();
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", apiToken);
         client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
