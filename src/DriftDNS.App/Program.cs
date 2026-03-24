@@ -1,8 +1,10 @@
 using DriftDNS.App.Workers;
 using DriftDNS.Core.Interfaces;
 using DriftDNS.Infrastructure.Data;
-using DriftDNS.Infrastructure.Services;
 using DriftDNS.Infrastructure.Providers;
+using DriftDNS.Infrastructure.Security;
+using DriftDNS.Infrastructure.Services;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -15,6 +17,13 @@ builder.Services.AddServerSideBlazor();
 var dbPath = builder.Configuration.GetValue<string>("DatabasePath") ?? "/app/data/app.db";
 builder.Services.AddDbContext<DriftDnsDbContext>(options =>
     options.UseSqlite($"Data Source={dbPath}"));
+
+// Data Protection — keys stored alongside the database
+var keysPath = Path.Combine(Path.GetDirectoryName(dbPath)!, "keys");
+builder.Services.AddDataProtection()
+    .PersistKeysToFileSystem(new DirectoryInfo(keysPath))
+    .SetApplicationName("DriftDNS");
+builder.Services.AddSingleton<ICredentialProtector, CredentialProtector>();
 
 // HttpClient for IP resolver
 builder.Services.AddHttpClient();

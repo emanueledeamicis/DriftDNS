@@ -44,6 +44,9 @@ efbundle
 *.sqlite
 *.sqlite3
 
+## Data Protection keys
+**/keys/key-*.xml
+
 ## User secrets / ASP.NET Core Data Protection
 **/secrets.json
 **/appsettings.*.json
