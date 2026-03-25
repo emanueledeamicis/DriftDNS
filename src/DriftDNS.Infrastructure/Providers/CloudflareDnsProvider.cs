@@ -29,7 +29,7 @@ public class CloudflareDnsProvider : IDnsProvider
     public async Task ValidateCredentialsAsync(ProviderAccount account, CancellationToken cancellationToken = default)
     {
         var client = CreateClient(account);
-        var response = await client.GetFromJsonAsync<CloudflareResponse<List<Zone>>>(
+        var response = await GetAsync<CloudflareResponse<List<Zone>>>(client,
             $"{BaseUrl}/zones?per_page=1", cancellationToken);
         EnsureSuccess(response);
     }
@@ -42,7 +42,7 @@ public class CloudflareDnsProvider : IDnsProvider
 
         while (true)
         {
-            var response = await client.GetFromJsonAsync<CloudflareResponse<List<Zone>>>(
+            var response = await GetAsync<CloudflareResponse<List<Zone>>>(client,
                 $"{BaseUrl}/zones?per_page=50&page={page}", cancellationToken);
             EnsureSuccess(response);
 
@@ -64,7 +64,7 @@ public class CloudflareDnsProvider : IDnsProvider
 
         while (true)
         {
-            var response = await client.GetFromJsonAsync<CloudflareResponse<List<DnsRecord>>>(
+            var response = await GetAsync<CloudflareResponse<List<DnsRecord>>>(client,
                 $"{BaseUrl}/zones/{zoneId}/dns_records?type={recordType}&per_page=100&page={page}", cancellationToken);
             EnsureSuccess(response);
 
@@ -113,7 +113,7 @@ public class CloudflareDnsProvider : IDnsProvider
 
     private async Task<string> ResolveZoneIdAsync(HttpClient client, string zoneName, CancellationToken cancellationToken)
     {
-        var response = await client.GetFromJsonAsync<CloudflareResponse<List<Zone>>>(
+        var response = await GetAsync<CloudflareResponse<List<Zone>>>(client,
             $"{BaseUrl}/zones?name={Uri.EscapeDataString(zoneName)}&per_page=1", cancellationToken);
         EnsureSuccess(response);
 
@@ -125,10 +125,16 @@ public class CloudflareDnsProvider : IDnsProvider
 
     private async Task<DnsRecord?> FindRecordAsync(HttpClient client, string zoneId, string hostname, string recordType, CancellationToken cancellationToken)
     {
-        var response = await client.GetFromJsonAsync<CloudflareResponse<List<DnsRecord>>>(
+        var response = await GetAsync<CloudflareResponse<List<DnsRecord>>>(client,
             $"{BaseUrl}/zones/{zoneId}/dns_records?type={recordType}&name={Uri.EscapeDataString(hostname)}", cancellationToken);
         EnsureSuccess(response);
         return response!.Result!.FirstOrDefault();
+    }
+
+    private static async Task<T?> GetAsync<T>(HttpClient client, string url, CancellationToken cancellationToken)
+    {
+        var httpResponse = await client.GetAsync(url, cancellationToken);
+        return await httpResponse.Content.ReadFromJsonAsync<T>(cancellationToken: cancellationToken);
     }
 
     private HttpClient CreateClient(ProviderAccount account)

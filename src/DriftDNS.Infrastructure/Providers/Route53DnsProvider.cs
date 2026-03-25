@@ -43,7 +43,7 @@ public class Route53DnsProvider : IDnsProvider
             if (nextZoneId is not null) request.HostedZoneId = nextZoneId;
 
             var response = await client.ListHostedZonesByNameAsync(request, cancellationToken);
-            zones.AddRange(response.HostedZones.Select(z => z.Name.TrimEnd('.')));
+            zones.AddRange((response.HostedZones ?? []).Select(z => z.Name.TrimEnd('.')));
 
             if (response.IsTruncated == true)
             {

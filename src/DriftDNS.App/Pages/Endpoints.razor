@@ -88,8 +88,11 @@
                 }
                 else if (_zonesError is not null)
                 {
-                    <input class="form-control" @bind="_form.ZoneName" placeholder="Enter zone manually" />
-                    <div class="form-text text-danger">@_zonesError</div>
+                    <div class="form-control text-danger">@_zonesError</div>
+                }
+                else if (_zones.Count == 0)
+                {
+                    <div class="form-control text-muted">No zones found for this provider</div>
                 }
                 else
                 {
@@ -117,8 +120,7 @@
                 }
                 else if (_hostnamesError is not null)
                 {
-                    <input class="form-control" @bind="_form.Hostname" placeholder="Enter hostname manually" />
-                    <div class="form-text text-danger">@_hostnamesError</div>
+                    <div class="form-control text-danger">@_hostnamesError</div>
                 }
                 else if (_hostnames.Count > 0)
                 {
@@ -310,6 +312,7 @@ else
     {
         if (Guid.TryParse(e.Value?.ToString(), out var id))
         {
+            _error = null;
             _form.ProviderAccountId = id;
             _form.ZoneName = string.Empty;
             _form.Hostname = string.Empty;
@@ -322,6 +325,7 @@ else
 
     private async Task OnZoneChanged(ChangeEventArgs e)
     {
+        _error = null;
         _form.ZoneName = e.Value?.ToString() ?? string.Empty;
         _form.Hostname = string.Empty;
         _ttlWarning = false;
@@ -336,6 +340,7 @@ else
 
     private async Task OnRecordTypeChanged(ChangeEventArgs e)
     {
+        _error = null;
         _form.RecordType = e.Value?.ToString() ?? "A";
         _form.Hostname = string.Empty;
         _ttlWarning = false;
@@ -350,6 +355,7 @@ else
 
     private async Task OnHostnameChanged(ChangeEventArgs e)
     {
+        _error = null;
         _form.Hostname = e.Value?.ToString() ?? string.Empty;
         _ttlWarning = false;
         if (string.IsNullOrEmpty(_form.Hostname)) return;
