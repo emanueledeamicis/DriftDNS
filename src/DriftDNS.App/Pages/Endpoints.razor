@@ -132,9 +132,13 @@
                         }
                     </select>
                 }
+                else if (string.IsNullOrEmpty(_form.ZoneName))
+                {
+                    <div class="form-control text-muted">Select a zone first</div>
+                }
                 else
                 {
-                    <input class="form-control" @bind="_form.Hostname" placeholder="@(string.IsNullOrEmpty(_form.ZoneName) ? "Select a zone first" : "No records found, enter manually")" />
+                    <div class="form-control text-muted">No @(_form.RecordType) records found in this zone</div>
                 }
             </div>
             @if (_ttlWarning)
