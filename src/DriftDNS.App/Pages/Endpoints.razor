@@ -373,6 +373,7 @@ else
                     e.Hostname == h &&
                     e.ZoneName == zoneName &&
                     e.RecordType == recordType &&
+                    e.ProviderAccountId == _form.ProviderAccountId &&
                     e.Id != _form.Id)
             )).ToList();
         }
