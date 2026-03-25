@@ -94,7 +94,7 @@ public class CloudflareDnsProvider : IDnsProvider
             type = endpoint.RecordType,
             name = endpoint.Hostname,
             content = ipAddress,
-            ttl = endpoint.TTL,
+            ttl = existing.Ttl,
             proxied = existing.Proxied
         };
 
@@ -103,12 +103,12 @@ public class CloudflareDnsProvider : IDnsProvider
         response.EnsureSuccessStatusCode();
     }
 
-    public async Task<bool> VerifyRecordAsync(ProviderAccount account, DnsEndpoint endpoint, CancellationToken cancellationToken = default)
+    public async Task<int?> VerifyRecordAsync(ProviderAccount account, DnsEndpoint endpoint, CancellationToken cancellationToken = default)
     {
         var client = CreateClient(account);
         var zoneId = await ResolveZoneIdAsync(client, endpoint.ZoneName, cancellationToken);
         var record = await FindRecordAsync(client, zoneId, endpoint.Hostname, endpoint.RecordType, cancellationToken);
-        return record is not null;
+        return record?.Ttl;
     }
 
     private async Task<string> ResolveZoneIdAsync(HttpClient client, string zoneName, CancellationToken cancellationToken)
@@ -186,6 +186,7 @@ public class CloudflareDnsProvider : IDnsProvider
     {
         [JsonPropertyName("id")] public string Id { get; set; } = string.Empty;
         [JsonPropertyName("name")] public string Name { get; set; } = string.Empty;
+        [JsonPropertyName("ttl")] public int Ttl { get; set; }
         [JsonPropertyName("proxied")] public bool Proxied { get; set; }
     }
 }

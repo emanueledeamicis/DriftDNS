@@ -103,8 +103,8 @@ public class Route53DnsProvider : IDnsProvider
 
         var zoneId = await ResolveZoneIdAsync(client, endpoint.ZoneName, cancellationToken);
 
-        var exists = await RecordExistsAsync(client, zoneId, endpoint.Hostname, endpoint.RecordType, cancellationToken);
-        if (!exists)
+        var existing = await FindRecordAsync(client, zoneId, endpoint.Hostname, endpoint.RecordType, cancellationToken);
+        if (existing is null)
             throw new InvalidOperationException(
                 $"DNS record '{endpoint.Hostname}' ({endpoint.RecordType}) not found in Route53. " +
                 "Create it manually on the provider, then DriftDNS will keep it in sync.");
@@ -123,7 +123,7 @@ public class Route53DnsProvider : IDnsProvider
                         {
                             Name = endpoint.Hostname,
                             Type = new RRType(endpoint.RecordType),
-                            TTL = endpoint.TTL,
+                            TTL = existing.TTL,
                             ResourceRecords = [new ResourceRecord { Value = ipAddress }],
                         },
                     },
@@ -135,14 +135,15 @@ public class Route53DnsProvider : IDnsProvider
         await client.ChangeResourceRecordSetsAsync(request, cancellationToken);
     }
 
-    public async Task<bool> VerifyRecordAsync(ProviderAccount account, DnsEndpoint endpoint, CancellationToken cancellationToken = default)
+    public async Task<int?> VerifyRecordAsync(ProviderAccount account, DnsEndpoint endpoint, CancellationToken cancellationToken = default)
     {
         var client = CreateClient(account);
         var zoneId = await ResolveZoneIdAsync(client, endpoint.ZoneName, cancellationToken);
-        return await RecordExistsAsync(client, zoneId, endpoint.Hostname, endpoint.RecordType, cancellationToken);
+        var record = await FindRecordAsync(client, zoneId, endpoint.Hostname, endpoint.RecordType, cancellationToken);
+        return record is not null ? (int)record.TTL : null;
     }
 
-    private static async Task<bool> RecordExistsAsync(IAmazonRoute53 client, string zoneId, string hostname, string recordType, CancellationToken cancellationToken)
+    private static async Task<ResourceRecordSet?> FindRecordAsync(IAmazonRoute53 client, string zoneId, string hostname, string recordType, CancellationToken cancellationToken)
     {
         var name = hostname.TrimEnd('.') + '.';
         var response = await client.ListResourceRecordSetsAsync(new ListResourceRecordSetsRequest
@@ -153,7 +154,7 @@ public class Route53DnsProvider : IDnsProvider
             MaxItems = "1"
         }, cancellationToken);
 
-        return response.ResourceRecordSets.Any(r =>
+        return response.ResourceRecordSets.FirstOrDefault(r =>
             r.Name.TrimEnd('.').Equals(hostname.TrimEnd('.'), StringComparison.OrdinalIgnoreCase) &&
             r.Type == new RRType(recordType));
     }
