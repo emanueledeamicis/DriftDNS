@@ -103,11 +103,16 @@ public class DnsSyncService : IDnsSyncService
             {
                 try
                 {
-                    var exists = await provider.VerifyRecordAsync(endpoint.ProviderAccount!, endpoint, cancellationToken);
-                    if (exists)
+                    var ttl = await provider.VerifyRecordAsync(endpoint.ProviderAccount!, endpoint, cancellationToken);
+                    if (ttl is not null)
                     {
                         _logger.LogDebug("No change for {Hostname}", endpoint.Hostname);
                         state.LastError = null;
+                        if (endpoint.TTL != ttl.Value)
+                        {
+                            endpoint.TTL = ttl.Value;
+                            await _db.SaveChangesAsync(cancellationToken);
+                        }
                         await WriteLogAsync(endpoint.Id, SyncAction.NoChange, state.LastAppliedIp, currentIp, "IP unchanged");
                         await UpsertStateAsync(state);
                         return;

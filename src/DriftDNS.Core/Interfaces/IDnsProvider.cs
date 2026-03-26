@@ -18,7 +18,8 @@ public interface IDnsProvider
         string ipAddress,
         CancellationToken cancellationToken = default);
 
-    Task<bool> VerifyRecordAsync(
+    /// <summary>Returns the record's TTL if it exists, or null if it was not found.</summary>
+    Task<int?> VerifyRecordAsync(
         ProviderAccount account,
         DnsEndpoint endpoint,
         CancellationToken cancellationToken = default);

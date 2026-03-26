@@ -122,7 +122,7 @@ public class CloudflareDnsProviderTests
         var endpoint = BuildEndpoint();
 
         _handler.EnqueueJson(CloudflareSuccess(new[] { new { id = "zone-1", name = "example.com" } }));            // resolve zone
-        _handler.EnqueueJson(CloudflareSuccess(new[] { new { id = "rec-existing", name = "test.example.com" } })); // find record → found
+        _handler.EnqueueJson(CloudflareSuccess(new[] { new { id = "rec-existing", name = "test.example.com", ttl = 300 } })); // find record → found
         _handler.EnqueueJson(CloudflareSuccess(new { id = "rec-existing" }));                                       // PUT update
 
         var act = async () => await _provider.UpsertRecordAsync(_account, endpoint, "1.2.3.4");
@@ -146,29 +146,29 @@ public class CloudflareDnsProviderTests
     // --- VerifyRecord ---
 
     [Test]
-    public async Task VerifyRecord_ReturnsTrue_WhenRecordExists()
+    public async Task VerifyRecord_ReturnsTtl_WhenRecordExists()
     {
         var endpoint = BuildEndpoint();
 
-        _handler.EnqueueJson(CloudflareSuccess(new[] { new { id = "zone-1", name = "example.com" } }));            // resolve zone
-        _handler.EnqueueJson(CloudflareSuccess(new[] { new { id = "rec-1", name = "test.example.com" } }));        // find record → found
+        _handler.EnqueueJson(CloudflareSuccess(new[] { new { id = "zone-1", name = "example.com" } }));
+        _handler.EnqueueJson(CloudflareSuccess(new[] { new { id = "rec-1", name = "test.example.com", ttl = 60 } }));
 
         var result = await _provider.VerifyRecordAsync(_account, endpoint);
 
-        result.Should().BeTrue();
+        result.Should().Be(60);
     }
 
     [Test]
-    public async Task VerifyRecord_ReturnsFalse_WhenRecordDoesNotExist()
+    public async Task VerifyRecord_ReturnsNull_WhenRecordDoesNotExist()
     {
         var endpoint = BuildEndpoint();
 
-        _handler.EnqueueJson(CloudflareSuccess(new[] { new { id = "zone-1", name = "example.com" } })); // resolve zone
-        _handler.EnqueueJson(CloudflareSuccess(new object[] { }));                                       // find record → not found
+        _handler.EnqueueJson(CloudflareSuccess(new[] { new { id = "zone-1", name = "example.com" } }));
+        _handler.EnqueueJson(CloudflareSuccess(new object[] { }));
 
         var result = await _provider.VerifyRecordAsync(_account, endpoint);
 
-        result.Should().BeFalse();
+        result.Should().BeNull();
     }
 
     // --- helpers ---

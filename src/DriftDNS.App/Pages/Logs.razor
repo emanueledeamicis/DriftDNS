@@ -36,6 +36,7 @@
         <tr>
             <th>Timestamp</th>
             <th>Endpoint</th>
+            <th>Provider</th>
             <th>Action</th>
             <th>Old IP</th>
             <th>New IP</th>
@@ -48,6 +49,7 @@
             <tr class="@ActionClass(log.Action)">
                 <td>@log.Timestamp.ToString("g")</td>
                 <td>@log.Endpoint?.Hostname</td>
+                <td>@log.Endpoint?.ProviderAccount?.Name</td>
                 <td>@log.Action</td>
                 <td>@log.OldIp</td>
                 <td>@log.NewIp</td>
@@ -83,7 +85,7 @@
         _loading = true;
         try
         {
-            var query = Db.SyncLogs.Include(l => l.Endpoint).AsQueryable();
+            var query = Db.SyncLogs.Include(l => l.Endpoint).ThenInclude(e => e!.ProviderAccount).AsQueryable();
 
             if (!string.IsNullOrEmpty(_actionFilter))
                 query = query.Where(l => l.Action == _actionFilter);

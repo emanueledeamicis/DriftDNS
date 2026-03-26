@@ -88,8 +88,11 @@
                 }
                 else if (_zonesError is not null)
                 {
-                    <input class="form-control" @bind="_form.ZoneName" placeholder="Enter zone manually" />
-                    <div class="form-text text-danger">@_zonesError</div>
+                    <div class="form-control text-danger">@_zonesError</div>
+                }
+                else if (_zones.Count == 0)
+                {
+                    <div class="form-control text-muted">No zones found for this provider</div>
                 }
                 else
                 {
@@ -117,12 +120,11 @@
                 }
                 else if (_hostnamesError is not null)
                 {
-                    <input class="form-control" @bind="_form.Hostname" placeholder="Enter hostname manually" />
-                    <div class="form-text text-danger">@_hostnamesError</div>
+                    <div class="form-control text-danger">@_hostnamesError</div>
                 }
                 else if (_hostnames.Count > 0)
                 {
-                    <select class="form-select" @bind="_form.Hostname">
+                    <select class="form-select" value="@_form.Hostname" @onchange="OnHostnameChanged">
                         <option value="">— select a hostname —</option>
                         @foreach (var h in _hostnames)
                         {
@@ -132,15 +134,22 @@
                         }
                     </select>
                 }
+                else if (string.IsNullOrEmpty(_form.ZoneName))
+                {
+                    <div class="form-control text-muted">Select a zone first</div>
+                }
                 else
                 {
-                    <input class="form-control" @bind="_form.Hostname" placeholder="@(string.IsNullOrEmpty(_form.ZoneName) ? "Select a zone first" : "No records found, enter manually")" />
+                    <div class="form-control text-muted">No @(_form.RecordType) records found in this zone</div>
                 }
             </div>
-            <div class="mb-2">
-                <label>TTL (seconds)</label>
-                <input class="form-control" type="number" @bind="_form.TTL" />
-            </div>
+            @if (_ttlWarning)
+            {
+                <div class="alert alert-warning py-2 mb-2">
+                    <i class="bi bi-exclamation-triangle-fill me-1"></i>
+                    This record has a high TTL (<strong>@_detectedTtl s</strong>). For dynamic DNS, set it to <strong>60–300 seconds</strong> in your provider to ensure fast propagation when your IP changes.
+                </div>
+            }
 <button class="btn btn-success" @onclick="SaveEndpoint" disabled="@(_zonesLoading || _hostnamesLoading || _saving)">
                 @if (_saving) {
                     <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
@@ -194,7 +203,16 @@ else
                         <td>@ep.Hostname</td>
                         <td>@ep.RecordType</td>
                         <td>@ep.ProviderAccount?.Name</td>
-                        <td>@ep.TTL</td>
+                        <td>
+                            @ep.TTL
+                            @if (ep.TTL > 300)
+                            {
+                                <i class="bi bi-exclamation-triangle-fill text-warning ms-1"
+                                   data-bs-toggle="tooltip"
+                                   title="TTL is high (@(ep.TTL)s). For dynamic DNS, set it to 60–300s in your provider."
+                                   style="cursor:default"></i>
+                            }
+                        </td>
                         <td>@SyncStatusBadge(ep)</td>
                         <td class="text-end">
                             <button class="btn btn-sm btn-outline-secondary" @onclick="() => EditEndpoint(ep)"><i class="bi bi-pencil me-1"></i>Edit</button>
@@ -232,6 +250,10 @@ else
     private bool _saving;
     private bool _deleting;
     private HashSet<Guid> _toggling = [];
+    private bool _ttlWarning;
+    private int _detectedTtl;
+
+    private const int TtlWarningThreshold = 300;
 
     protected override async Task OnInitializedAsync() => await LoadAsync();
 
@@ -249,12 +271,13 @@ else
             return;
         }
 
-        _form = new DnsEndpoint { TTL = 300, RecordType = "A", ProviderAccountId = _providers[0].Id };
+        _form = new DnsEndpoint { RecordType = "A", ProviderAccountId = _providers[0].Id };
         _editing = false;
         _showForm = true;
         _error = null;
         _hostnames = [];
         _hostnamesError = null;
+        _ttlWarning = false;
         await FetchZonesAsync(_providers[0].Id);
     }
 
@@ -278,6 +301,8 @@ else
         _error = null;
         _hostnames = [];
         _hostnamesError = null;
+        _ttlWarning = ep.TTL > TtlWarningThreshold;
+        _detectedTtl = ep.TTL;
         await FetchZonesAsync(ep.ProviderAccountId);
         if (!string.IsNullOrEmpty(ep.ZoneName))
             await FetchHostnamesAsync(ep.ProviderAccountId, ep.ZoneName, ep.RecordType);
@@ -287,19 +312,23 @@ else
     {
         if (Guid.TryParse(e.Value?.ToString(), out var id))
         {
+            _error = null;
             _form.ProviderAccountId = id;
             _form.ZoneName = string.Empty;
             _form.Hostname = string.Empty;
             _hostnames = [];
             _hostnamesError = null;
+            _ttlWarning = false;
             await FetchZonesAsync(id);
         }
     }
 
     private async Task OnZoneChanged(ChangeEventArgs e)
     {
+        _error = null;
         _form.ZoneName = e.Value?.ToString() ?? string.Empty;
         _form.Hostname = string.Empty;
+        _ttlWarning = false;
         if (!string.IsNullOrEmpty(_form.ZoneName))
             await FetchHostnamesAsync(_form.ProviderAccountId, _form.ZoneName, _form.RecordType);
         else
@@ -311,8 +340,10 @@ else
 
     private async Task OnRecordTypeChanged(ChangeEventArgs e)
     {
+        _error = null;
         _form.RecordType = e.Value?.ToString() ?? "A";
         _form.Hostname = string.Empty;
+        _ttlWarning = false;
         if (!string.IsNullOrEmpty(_form.ZoneName))
             await FetchHostnamesAsync(_form.ProviderAccountId, _form.ZoneName, _form.RecordType);
         else
@@ -320,6 +351,32 @@ else
             _hostnames = [];
             _hostnamesError = null;
         }
+    }
+
+    private async Task OnHostnameChanged(ChangeEventArgs e)
+    {
+        _error = null;
+        _form.Hostname = e.Value?.ToString() ?? string.Empty;
+        _ttlWarning = false;
+        if (string.IsNullOrEmpty(_form.Hostname)) return;
+
+        var account = _providers.FirstOrDefault(p => p.Id == _form.ProviderAccountId);
+        if (account is null) return;
+        var provider = DnsProviders.FirstOrDefault(p =>
+            p.Name.Equals(account.ProviderType, StringComparison.OrdinalIgnoreCase));
+        if (provider is null) return;
+
+        try
+        {
+            var ttl = await provider.VerifyRecordAsync(account, _form);
+            if (ttl is not null)
+            {
+                _detectedTtl = ttl.Value;
+                _form.TTL = ttl.Value;
+                _ttlWarning = ttl.Value > TtlWarningThreshold;
+            }
+        }
+        catch { }
     }
 
     private async Task FetchZonesAsync(Guid providerAccountId)
@@ -373,6 +430,7 @@ else
                     e.Hostname == h &&
                     e.ZoneName == zoneName &&
                     e.RecordType == recordType &&
+                    e.ProviderAccountId == _form.ProviderAccountId &&
                     e.Id != _form.Id)
             )).ToList();
         }
