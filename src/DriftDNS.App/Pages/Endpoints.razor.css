@@ -31,6 +31,23 @@
     margin-left: auto;
 }
 
+[data-bs-theme="dark"] .zone-header {
+    background-color: var(--bs-tertiary-bg);
+}
+
+[data-bs-theme="dark"] .zone-label {
+    color: #6ea8fe;
+    background-color: rgba(13, 110, 253, 0.2);
+}
+
+[data-bs-theme="dark"] .zone-name {
+    color: var(--bs-body-color);
+}
+
+[data-bs-theme="dark"] .zone-count {
+    color: var(--bs-secondary-color);
+}
+
 .endpoint-table {
     table-layout: fixed;
     width: 100%;

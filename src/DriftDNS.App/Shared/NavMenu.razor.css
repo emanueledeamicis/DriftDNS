@@ -31,13 +31,14 @@
         padding-bottom: 1rem;
     }
 
-    .nav-item ::deep a {
+    .nav-item ::deep a,
+    .nav-item ::deep button.nav-link {
         color: #d7d7d7;
         border-radius: 4px;
         height: 3rem;
         display: flex;
         align-items: center;
-        line-height: 3rem;
+        padding: 0 1rem;
     }
 
 .nav-item ::deep a.active {
@@ -45,9 +46,23 @@
     color: white;
 }
 
-.nav-item ::deep a:hover {
+.nav-item ::deep a:hover,
+.nav-item ::deep button.nav-link:hover {
     background-color: rgba(255,255,255,0.1);
     color: white;
+}
+
+.nav-icon {
+    width: 2rem;
+    font-size: 1.1rem;
+    display: inline-block;
+    flex-shrink: 0;
+}
+
+.sidebar-divider {
+    border-color: rgba(255,255,255,0.15);
+    margin-top: 0.25rem;
+    margin-bottom: 0;
 }
 
 @media (min-width: 641px) {

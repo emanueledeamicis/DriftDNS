@@ -1,0 +1,13 @@
+[data-bs-theme="dark"] tr.table-success td,
+[data-bs-theme="dark"] tr.table-success th {
+    background-color: rgba(25, 135, 84, 0.18) !important;
+    box-shadow: none !important;
+    color: #dee2e6 !important;
+}
+
+[data-bs-theme="dark"] tr.table-danger td,
+[data-bs-theme="dark"] tr.table-danger th {
+    background-color: rgba(220, 53, 69, 0.18) !important;
+    box-shadow: none !important;
+    color: inherit !important;
+}

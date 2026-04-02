@@ -76,3 +76,9 @@ a, .btn-link {
     display: inline-block;
     animation: spin 1s linear infinite;
 }
+
+[data-bs-theme="dark"] .sidebar {
+    background-image: none !important;
+    background-color: #111;
+    border-right: 1px solid rgba(255,255,255,0.1);
+}
